@@ -1,6 +1,6 @@
 
 import express from 'express';
-import NetworkController from '../controllers/NetworkController.js';
+import NetworkController from '../controllers/networkController.js';
 import { authRequired } from '../middleware/authMiddleware.js';
 
 const router = express.Router();

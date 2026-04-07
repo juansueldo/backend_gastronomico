@@ -1,4 +1,3 @@
-
 import { Network, Status } from '../models/index.js';
 
 class NetworkController {
