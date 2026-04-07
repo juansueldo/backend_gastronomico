@@ -306,11 +306,14 @@
             addLog(`Conectando a ${serverUrl}...`, 'system');
 
             socket = io(serverUrl, {
-                auth: {
-                    token,
-                    storeId
-                },
-                transports: ['websocket', 'polling']
+              auth: {
+                token,
+                storeId
+              },
+              transports: ['polling', 'websocket'],
+              reconnection: true,
+              reconnectionAttempts: 5,
+              timeout: 20000
             });
 
             socket.on('connect', () => {
