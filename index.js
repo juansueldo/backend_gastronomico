@@ -33,13 +33,6 @@ process.removeAllListeners('warning');
 process.on('warning', () => {});
 
 const app = express();
-
-
-// Middleware JSON
-app.use(express.json());
-const app = express();
-
-
 // Middleware JSON
 app.use(express.json());
 const allowedOrigins = process.env.CORS_ORIGINS
