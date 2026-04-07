@@ -11,7 +11,7 @@ const swaggerOptions = {
       description: 'Documentación de la API para el local gastronómico',
     },
     servers: [
-      { url: 'http://localhost:3000' }
+      { url: 'https://backend-gastronomico.onrender.com' }
     ],
     components: {
       securitySchemes: {
