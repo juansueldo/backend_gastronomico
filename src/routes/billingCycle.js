@@ -1,6 +1,6 @@
 
 import express from 'express';
-import BillingCycleController from '../controllers/billingCycleController.js';
+import BillingCycleController from '../controllers/billingcycleController.js';
 import { authRequired } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
