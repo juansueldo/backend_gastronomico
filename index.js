@@ -1,5 +1,6 @@
 // Suprimir warnings de Node.js
 import process from 'node:process';
+import cors from 'cors';
 import 'dotenv/config';
 import express from 'express';
 import path from 'node:path';
@@ -36,7 +37,29 @@ const app = express();
 
 // Middleware JSON
 app.use(express.json());
+const app = express();
 
+
+// Middleware JSON
+app.use(express.json());
+const allowedOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',')
+  : [];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (Postman, curl, mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      return callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
 if (process.env.NODE_ENV !== 'production') {
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
