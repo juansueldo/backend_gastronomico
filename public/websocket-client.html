@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Client - API Gastronómico</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .logs {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .log-entry {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: #999;
+            font-weight: bold;
+        }
+
+        .log-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            margin: 0 5px;
+            font-weight: bold;
+        }
+
+        .log-type.sent {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .log-type.received {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .log-type.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .log-type.system {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Panel de Conexión -->
+        <div class="panel">
+            <h1>Conexión WebSocket</h1>
+            
+            <div id="status" class="status disconnected">
+                ● Desconectado
+            </div>
+
+            <div class="form-group">
+                <label for="token">JWT Token:</label>
+                <input type="text" id="token" placeholder="Pega tu JWT token aquí" value="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+            </div>
+
+            <div class="form-group">
+                <label for="storeId">Store ID:</label>
+                <input type="number" id="storeId" placeholder="ID de la tienda" value="1">
+            </div>
+
+            <div class="form-group">
+                <label for="serverUrl">URL del Servidor:</label>
+                <input type="text" id="serverUrl" placeholder="http://localhost:3000" value="http://localhost:3000">
+            </div>
+
+            <div class="button-group">
+                <button onclick="connectWebSocket()">Conectar</button>
+                <button onclick="disconnectWebSocket()" id="disconnectBtn" disabled>Desconectar</button>
+            </div>
+
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+
+            <h2 style="font-size: 18px; margin-bottom: 15px;">Suscribirse a Canales</h2>
+
+            <div class="form-group">
+                <label for="channelSelect">Selecciona Canal:</label>
+                <select id="channelSelect">
+                    <option value="">-- Selecciona un canal --</option>
+                    <option value="orders">Órdenes</option>
+                    <option value="products">Productos</option>
+                    <option value="tables">Mesas</option>
+                    <option value="waiters">Mozos</option>
+                    <option value="segments">Segmentos</option>
+                    <option value="subscriptions">Suscripciones</option>
+                </select>
+            </div>
+
+            <button onclick="subscribeChannel()" style="margin-bottom: 10px;">Suscribirse</button>
+            <button onclick="unsubscribeChannel()" style="background: #dc3545;">Desuscribirse</button>
+        </div>
+
+        <!-- Panel de Logs -->
+        <div class="panel">
+            <h1>Eventos en Tiempo Real</h1>
+            
+            <button onclick="clearLogs()" style="margin-bottom: 15px; background: #6c757d;">Limpiar Logs</button>
+
+            <div class="logs" id="logs">
+                <div class="log-entry">
+                    <span class="log-time">[00:00:00]</span>
+                    <span class="log-type system">SYSTEM</span>
+                    Esperando conexión...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        let currentChannel = null;
+
+        function addLog(message, type = 'system') {
+            const logsDiv = document.getElementById('logs');
+            const time = new Date().toLocaleTimeString('es-ES');
+            
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `
+                <span class="log-time">[${time}]</span>
+                <span class="log-type ${type}">${type.toUpperCase()}</span>
+                <span>${escapeHtml(message)}</span>
+            `;
+            
+            logsDiv.appendChild(entry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '● Conectado';
+                disconnectBtn.disabled = false;
+                addLog('✓ Conectado al servidor WebSocket', 'system');
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '● Desconectado';
+                disconnectBtn.disabled = true;
+                addLog('✗ Desconectado del servidor', 'system');
+            }
+        }
+
+        function connectWebSocket() {
+            const token = document.getElementById('token').value;
+            const storeId = document.getElementById('storeId').value;
+            const serverUrl = document.getElementById('serverUrl').value;
+
+            if (!token || !storeId) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            addLog(`Conectando a ${serverUrl}...`, 'system');
+
+            socket = io(serverUrl, {
+                auth: {
+                    token,
+                    storeId
+                },
+                transports: ['websocket', 'polling']
+            });
+
+            socket.on('connect', () => {
+                updateStatus(true);
+                addLog(`Socket ID: ${socket.id}`, 'received');
+            });
+
+            socket.on('connected', (data) => {
+                addLog(`Conectado a servidor: ${JSON.stringify(data)}`, 'received');
+            });
+
+            socket.on('subscribed', (data) => {
+                addLog(`Suscrito a canal: ${data.channel}`, 'received');
+            });
+
+            socket.on('unsubscribed', (data) => {
+                addLog(`Desuscrito de canal: ${data.channel}`, 'received');
+            });
+
+            socket.on('pong', () => {
+                addLog('Pong recibido', 'received');
+            });
+
+            // Escuchar eventos de productos
+            socket.on('product_created', (data) => {
+                addLog(`[PRODUCTS] Producto creado: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            socket.on('product_updated', (data) => {
+                addLog(`[PRODUCTS] Producto actualizado: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            socket.on('product_deleted', (data) => {
+                addLog(`[PRODUCTS] Producto eliminado: ${data.data.productId}`, 'received');
+            });
+
+            // Escuchar eventos de órdenes
+            socket.on('order_created', (data) => {
+                addLog(`[ORDERS] Orden creada: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            socket.on('order_status_changed', (data) => {
+                addLog(`[ORDERS] Estado de orden cambió: ${data.data.oldStatus} → ${data.data.newStatus}`, 'received');
+            });
+
+            // Escuchar eventos de mesas
+            socket.on('table_created', (data) => {
+                addLog(`[TABLES] Mesa creada: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            socket.on('table_status_changed', (data) => {
+                addLog(`[TABLES] Estado de mesa cambió: ${data.data.oldStatus} → ${data.data.newStatus}`, 'received');
+            });
+
+            // Escuchar eventos de mozos
+            socket.on('waiter_created', (data) => {
+                addLog(`[WAITERS] Mozo creado: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            // Escuchar eventos de segmentos
+            socket.on('segment_updated', (data) => {
+                addLog(`[SEGMENTS] Segmento actualizado: ${JSON.stringify(data.data, null, 2)}`, 'received');
+            });
+
+            // Eventos genéricos
+            socket.on('error', (error) => {
+                addLog(`Error: ${error}`, 'error');
+                updateStatus(false);
+            });
+
+            socket.on('disconnect', () => {
+                updateStatus(false);
+            });
+        }
+
+        function disconnectWebSocket() {
+            if (socket) {
+                socket.disconnect();
+                updateStatus(false);
+            }
+        }
+
+        function subscribeChannel() {
+            const channel = document.getElementById('channelSelect').value;
+            
+            if (!channel) {
+                alert('Selecciona un canal');
+                return;
+            }
+
+            if (!socket || !socket.connected) {
+                alert('Conecta primero al servidor');
+                return;
+            }
+
+            currentChannel = channel;
+            socket.emit('subscribe', { channel });
+            addLog(`Enviando suscripción a canal: ${channel}`, 'sent');
+        }
+
+        function unsubscribeChannel() {
+            const channel = document.getElementById('channelSelect').value;
+            
+            if (!channel) {
+                alert('Selecciona un canal');
+                return;
+            }
+
+            if (!socket || !socket.connected) {
+                alert('Conecta primero al servidor');
+                return;
+            }
+
+            socket.emit('unsubscribe', { channel });
+            addLog(`Enviando desuscripción de canal: ${channel}`, 'sent');
+        }
+
+        function clearLogs() {
+            document.getElementById('logs').innerHTML = '';
+            addLog('Logs limpiados', 'system');
+        }
+
+        // Auto-conectar si hay datos guardados en localStorage
+        window.addEventListener('load', () => {
+            addLog('Cliente WebSocket cargado', 'system');
+        });
+    </script>
+</body>
+</html>

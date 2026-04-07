@@ -1,0 +1,3523 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API Gastronómico",
+    "version": "1.0.0",
+    "description": "Documentación de la API para el local gastronómico"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "customHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-custom-header"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    },
+    {
+      "customHeader": []
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Registrar un nuevo usuario y crear store",
+        "description": "Crea una nueva tienda y usuario admin en una sola operación",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "storename",
+                  "firstname",
+                  "lastname",
+                  "username",
+                  "email",
+                  "password",
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "properties": {
+          "storename": {
+            "type": "string",
+            "example": "Mi Restaurante"
+          },
+          "slug": {
+            "type": "string",
+            "example": "mi-restaurante"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "UTC-3"
+          },
+          "location": {
+            "type": "string",
+            "example": "Montevideo"
+          },
+          "firstname": {
+            "type": "string",
+            "example": "Juan"
+          },
+          "lastname": {
+            "type": "string",
+            "example": "Pérez"
+          },
+          "username": {
+            "type": "string",
+            "example": "juanperez"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "juan@example.com"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "securepassword123"
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario y tienda creados exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "store": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "slug": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "firstname": {
+                          "type": "string"
+                        },
+                        "lastname": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Iniciar sesión",
+        "description": "Autentica un usuario y devuelve JWT token",
+        "tags": [
+          "Auth"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "username",
+                  "password"
+                ],
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "example": "juanperez"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "securepassword123"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login exitoso",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Login successful"
+                    },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "firstname": {
+                          "type": "string"
+                        },
+                        "lastname": {
+                          "type": "string"
+                        },
+                        "email": {
+                          "type": "string"
+                        },
+                        "customerId": {
+                          "type": "integer",
+                          "nullable": true
+                        },
+                        "token": {
+                          "type": "string",
+                          "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Credenciales inválidas"
+          },
+          "404": {
+            "description": "Usuario no encontrado"
+          }
+        }
+      }
+    },
+    "/billing-cycle": {
+      "post": {
+        "summary": "Crear un nuevo ciclo de facturación",
+        "description": "Crea un nuevo período de facturación (mensual, trimestral, anual, etc.)",
+        "tags": [
+          "BillingCycle"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "slug",
+                  "days"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Mensual"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "monthly"
+                  },
+                  "days": {
+                    "type": "integer",
+                    "example": 30
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Ciclo de facturación mensual"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Ciclo de facturación creado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "days": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los ciclos de facturación",
+        "description": "Lista todos los ciclos de facturación disponibles",
+        "tags": [
+          "BillingCycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de ciclos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "days": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/billing-cycle/{id}": {
+      "get": {
+        "summary": "Obtener un ciclo por ID",
+        "tags": [
+          "BillingCycle"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ciclo encontrado"
+          },
+          "404": {
+            "description": "Ciclo no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un ciclo de facturación",
+        "tags": [
+          "BillingCycle"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "days": {
+                    "type": "integer"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ciclo actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Ciclo no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un ciclo de facturación",
+        "tags": [
+          "BillingCycle"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ciclo eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Ciclo no encontrado"
+          }
+        }
+      }
+    },
+    "/billing-cycle/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado del ciclo",
+        "tags": [
+          "BillingCycle"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Ciclo no encontrado"
+          }
+        }
+      }
+    },
+    "/contact": {
+      "post": {
+        "summary": "Crear un nuevo contacto",
+        "description": "Crea un contacto que vincula un cliente con una instancia (canal de comunicación).",
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "customerId",
+                  "instanceId",
+                  "storeId",
+                  "identifier",
+                  "type"
+                ],
+                "properties": {
+                  "customerId": {
+                    "type": "integer",
+                    "description": "ID del cliente"
+                  },
+                  "instanceId": {
+                    "type": "integer",
+                    "description": "ID de la instancia (canal - WhatsApp, email, etc.)"
+                  },
+                  "storeId": {
+                    "type": "integer",
+                    "description": "ID de la tienda"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "description": "Identificador único (teléfono, email, usuario de WhatsApp, etc.)"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "email",
+                      "whatsapp",
+                      "telegram",
+                      "other"
+                    ],
+                    "description": "Tipo de contacto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Contacto creado exitosamente"
+          },
+          "400": {
+            "description": "Validación fallida o contacto duplicado"
+          },
+          "404": {
+            "description": "Cliente o instancia no encontrado"
+          }
+        }
+      }
+    },
+    "/contact/customer/{customerId}": {
+      "get": {
+        "summary": "Obtener todos los contactos de un cliente",
+        "description": "Retorna todos los canales de comunicación (contactos) asociados a un cliente.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "customerId",
+            "in": "path",
+            "required": true,
+            "description": "ID del cliente",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contactos encontrados"
+          },
+          "404": {
+            "description": "Cliente no encontrado"
+          }
+        }
+      }
+    },
+    "/contact/instance/{instanceId}": {
+      "get": {
+        "summary": "Obtener todos los contactos de una instancia",
+        "description": "Retorna todos los clientes que están en comunicación a través de una instancia específica.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "instanceId",
+            "in": "path",
+            "required": true,
+            "description": "ID de la instancia",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contactos encontrados"
+          },
+          "404": {
+            "description": "Instancia no encontrada"
+          }
+        }
+      }
+    },
+    "/contact/{id}": {
+      "get": {
+        "summary": "Obtener un contacto específico",
+        "description": "Retorna los detalles de un contacto.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del contacto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contacto encontrado"
+          },
+          "404": {
+            "description": "Contacto no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un contacto",
+        "description": "Actualiza los datos de un contacto existente.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del contacto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "identifier": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "phone",
+                      "email",
+                      "whatsapp",
+                      "telegram",
+                      "other"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Contacto actualizado"
+          },
+          "404": {
+            "description": "Contacto no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un contacto",
+        "description": "Elimina el contacto entre un cliente y una instancia.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del contacto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Contacto eliminado"
+          },
+          "404": {
+            "description": "Contacto no encontrado"
+          }
+        }
+      }
+    },
+    "/contact/{id}/status": {
+      "patch": {
+        "summary": "Cambiar estado de un contacto",
+        "description": "Activa o desactiva un contacto.",
+        "tags": [
+          "Contacts"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del contacto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer",
+                    "description": "ID del estado"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "404": {
+            "description": "Contacto no encontrado"
+          }
+        }
+      }
+    },
+    "/customer": {
+      "post": {
+        "summary": "Crear un nuevo cliente",
+        "description": "Crea un nuevo cliente para la tienda autenticada",
+        "tags": [
+          "Customer"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstname",
+                  "lastname",
+                  "phone"
+                ],
+                "properties": {
+                  "firstname": {
+                    "type": "string",
+                    "example": "Juan"
+                  },
+                  "lastname": {
+                    "type": "string",
+                    "example": "Pérez"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "+598912345678"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "juan@example.com"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "example": {
+                      "preferences": "sin picante"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Cliente creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "firstname": {
+                      "type": "string"
+                    },
+                    "lastname": {
+                      "type": "string"
+                    },
+                    "phone": {
+                      "type": "string"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los clientes",
+        "description": "Lista todos los clientes de la tienda autenticada",
+        "tags": [
+          "Customer"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Número de página"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Límite de resultados por página"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de clientes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "firstname": {
+                        "type": "string"
+                      },
+                      "lastname": {
+                        "type": "string"
+                      },
+                      "phone": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/customer/{id}": {
+      "get": {
+        "summary": "Obtener un cliente por ID",
+        "tags": [
+          "Customer"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cliente encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Cliente no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un cliente",
+        "tags": [
+          "Customer"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstname": {
+                    "type": "string"
+                  },
+                  "lastname": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Cliente actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Cliente no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un cliente",
+        "tags": [
+          "Customer"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cliente eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Cliente no encontrado"
+          }
+        }
+      }
+    },
+    "/delivery-zone": {
+      "post": {
+        "summary": "Crear una nueva zona de entrega",
+        "description": "Crea una zona de entrega para una tienda con un polígono geométrico.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "storeId",
+                  "name",
+                  "polygon"
+                ],
+                "properties": {
+                  "storeId": {
+                    "type": "integer",
+                    "description": "ID de la tienda"
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Nombre de la zona de entrega"
+                  },
+                  "polygon": {
+                    "type": "string",
+                    "description": "Polígono en formato WKT o GeoJSON (ej. POLYGON((-56.16 -33.87, -56.15 -33.87, -56.15 -33.88, -56.16 -33.87)))"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Datos adicionales (opcional)"
+                  },
+                  "zoneid": {
+                    "type": "string",
+                    "description": "Identificador único de la zona (opcional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Zona de entrega creada exitosamente"
+          },
+          "400": {
+            "description": "Validación fallida"
+          },
+          "404": {
+            "description": "Tienda no encontrada"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las zonas de entrega de una tienda",
+        "description": "Retorna todas las zonas de entrega activas de una tienda específica.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "description": "ID de la tienda",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zonas de entrega encontradas"
+          },
+          "400": {
+            "description": "storeId requerido"
+          }
+        }
+      }
+    },
+    "/delivery-zone/{id}": {
+      "get": {
+        "summary": "Obtener una zona de entrega por ID",
+        "description": "Retorna los detalles de una zona de entrega específica.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la zona de entrega",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zona encontrada"
+          },
+          "404": {
+            "description": "Zona no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una zona de entrega",
+        "description": "Actualiza los datos de una zona de entrega existente.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la zona de entrega",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "polygon": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  },
+                  "zoneid": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Zona actualizada exitosamente"
+          },
+          "404": {
+            "description": "Zona no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una zona de entrega",
+        "description": "Elimina una zona de entrega de manera permanente.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la zona de entrega",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zona eliminada exitosamente"
+          },
+          "404": {
+            "description": "Zona no encontrada"
+          }
+        }
+      }
+    },
+    "/delivery-zone/{id}/status": {
+      "patch": {
+        "summary": "Cambiar estado de una zona de entrega",
+        "description": "Activa o desactiva una zona de entrega.",
+        "tags": [
+          "Delivery Zones"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la zona de entrega",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer",
+                    "description": "ID del estado (1=Activo, 2=Inactivo, etc.)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "404": {
+            "description": "Zona no encontrada"
+          }
+        }
+      }
+    },
+    "/instance": {
+      "post": {
+        "summary": "Crear una nueva instancia de canal",
+        "description": "Crea una nueva instancia de comunicación (WhatsApp, Email, etc.) para la tienda",
+        "tags": [
+          "Instance"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "networkId",
+                  "name",
+                  "identifier"
+                ],
+                "properties": {
+                  "networkId": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "WhatsApp Ventas"
+                  },
+                  "identifier": {
+                    "type": "string",
+                    "example": "+598912345678"
+                  },
+                  "credentials": {
+                    "type": "object",
+                    "example": {
+                      "token": "xxx",
+                      "secret": "yyy"
+                    }
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "example": {
+                      "status": "active"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Instancia creada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "networkId": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "identifier": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las instancias",
+        "description": "Lista todas las instancias de comunicación de la tienda autenticada",
+        "tags": [
+          "Instance"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de instancias",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "networkId": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/instance/{id}": {
+      "get": {
+        "summary": "Obtener una instancia por ID",
+        "tags": [
+          "Instance"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instancia encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Instancia no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una instancia",
+        "tags": [
+          "Instance"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "identifier": {
+                    "type": "string"
+                  },
+                  "credentials": {
+                    "type": "object"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instancia actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Instancia no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una instancia",
+        "tags": [
+          "Instance"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Instancia eliminada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Instancia no encontrada"
+          }
+        }
+      }
+    },
+    "/network": {
+      "post": {
+        "summary": "Crear una nueva red de comunicación",
+        "description": "Crea una nueva canal o red de comunicación (WhatsApp, Telegram, Email, etc.)",
+        "tags": [
+          "Network"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "slug",
+                  "type"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "WhatsApp"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "whatsapp"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "whatsapp",
+                      "email",
+                      "telegram",
+                      "sms",
+                      "social"
+                    ],
+                    "example": "whatsapp"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "example": "whatsapp-icon"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Red creada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las redes",
+        "description": "Lista todas las redes de comunicación disponibles",
+        "tags": [
+          "Network"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de redes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/network/{id}": {
+      "get": {
+        "summary": "Obtener una red por ID",
+        "tags": [
+          "Network"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Red encontrada"
+          },
+          "404": {
+            "description": "Red no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una red",
+        "tags": [
+          "Network"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Red actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Red no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una red",
+        "tags": [
+          "Network"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Red eliminada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Red no encontrada"
+          }
+        }
+      }
+    },
+    "/order": {
+      "post": {
+        "summary": "Crear una nueva orden",
+        "description": "Crea una orden con múltiples items. Para órdenes de delivery, se valida que las coordenadas estén dentro de una zona de entrega registrada.",
+        "tags": [
+          "Orders"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "storeId",
+                  "userId",
+                  "items",
+                  "type"
+                ],
+                "properties": {
+                  "storeId": {
+                    "type": "integer",
+                    "description": "ID de la tienda"
+                  },
+                  "userId": {
+                    "type": "integer",
+                    "description": "ID del usuario que crea la orden"
+                  },
+                  "customerId": {
+                    "type": "integer",
+                    "description": "ID del cliente (opcional)"
+                  },
+                  "items": {
+                    "type": "array",
+                    "description": "Array de items de la orden",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "productId",
+                        "quantity"
+                      ],
+                      "properties": {
+                        "productId": {
+                          "type": "integer",
+                          "description": "ID del producto"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "description": "Cantidad del producto"
+                        }
+                      }
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "dine-in",
+                      "takeaway",
+                      "delivery"
+                    ],
+                    "description": "Tipo de orden"
+                  },
+                  "delivery_address": {
+                    "type": "string",
+                    "description": "Dirección de entrega (requerida si type es delivery)"
+                  },
+                  "delivery_latitude": {
+                    "type": "number",
+                    "format": "float",
+                    "description": "Latitud de la dirección de entrega (requerida si type es delivery)"
+                  },
+                  "delivery_longitude": {
+                    "type": "number",
+                    "format": "float",
+                    "description": "Longitud de la dirección de entrega (requerida si type es delivery)"
+                  },
+                  "delivery_date": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "Fecha de entrega (requerida si type es delivery)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Orden creada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "order_number": {
+                      "type": "string"
+                    },
+                    "total_amount": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "delivery_address": {
+                      "type": "string"
+                    },
+                    "delivery_latitude": {
+                      "type": "number"
+                    },
+                    "delivery_longitude": {
+                      "type": "number"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    },
+                    "userId": {
+                      "type": "integer"
+                    },
+                    "DeliveryZone": {
+                      "type": "object",
+                      "nullable": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida o coordenadas fuera de zona de entrega"
+          },
+          "404": {
+            "description": "Tienda o producto no encontrado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las órdenes de una tienda",
+        "description": "Retorna todas las órdenes de una tienda específica con paginación implícita.",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "query",
+            "required": true,
+            "description": "ID de la tienda",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órdenes de la tienda",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "storeId requerido"
+          }
+        }
+      }
+    },
+    "/order/{id}": {
+      "get": {
+        "summary": "Obtener una orden por ID",
+        "description": "Retorna los detalles completos de una orden incluyendo sus items y productos asociados.",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden encontrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "order_number": {
+                      "type": "string"
+                    },
+                    "total_amount": {
+                      "type": "number"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string"
+                    },
+                    "OrderItems": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "quantity": {
+                            "type": "integer"
+                          },
+                          "price": {
+                            "type": "number"
+                          },
+                          "Product": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una orden",
+        "description": "Elimina una orden y todos sus items asociados.",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden eliminada exitosamente"
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      }
+    },
+    "/order/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de una orden",
+        "description": "Cambia el estado de una orden (pending, processing, completed, cancelled).",
+        "tags": [
+          "Orders"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "pending",
+                      "processing",
+                      "completed",
+                      "cancelled"
+                    ],
+                    "description": "Nuevo estado de la orden"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado exitosamente"
+          },
+          "400": {
+            "description": "Estado inválido"
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      }
+    },
+    "/plan": {
+      "post": {
+        "summary": "Crear un nuevo plan de suscripción",
+        "description": "Crea un nuevo plan con características y precios asociados",
+        "tags": [
+          "Plan"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "slug",
+                  "price"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Plan Pro"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "plan-pro"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Plan profesional con todas las características"
+                  },
+                  "price": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 99.99
+                  },
+                  "billingCycle": {
+                    "type": "string",
+                    "enum": [
+                      "monthly",
+                      "yearly"
+                    ],
+                    "example": "monthly"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Plan creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los planes",
+        "description": "Lista todos los planes de suscripción disponibles",
+        "tags": [
+          "Plan"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de planes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan/{id}": {
+      "get": {
+        "summary": "Obtener un plan por ID",
+        "tags": [
+          "Plan"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan encontrado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un plan",
+        "tags": [
+          "Plan"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "billingCycle": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Plan actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un plan",
+        "tags": [
+          "Plan"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plan eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      }
+    },
+    "/plan/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado del plan",
+        "tags": [
+          "Plan"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      }
+    },
+    "/plan-features": {
+      "post": {
+        "summary": "Crear una característica de plan",
+        "description": "Añade una nueva característica a un plan de suscripción",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "planId",
+                  "name",
+                  "slug"
+                ],
+                "properties": {
+                  "planId": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "name": {
+                    "type": "string",
+                    "example": "API Calls"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "api-calls"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Llamadas API ilimitadas"
+                  },
+                  "value": {
+                    "type": "string",
+                    "example": "unlimited"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Característica creada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "planId": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/plan-features/plan/{planId}": {
+      "get": {
+        "summary": "Obtener características de un plan",
+        "description": "Lista todas las características de un plan específico",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de características",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-features/{id}": {
+      "get": {
+        "summary": "Obtener una característica por ID",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Característica encontrada"
+          },
+          "404": {
+            "description": "Característica no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una característica",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Característica actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Característica no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una característica",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Característica eliminada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Característica no encontrada"
+          }
+        }
+      }
+    },
+    "/plan-features/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de la característica",
+        "tags": [
+          "PlanFeatures"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Característica no encontrada"
+          }
+        }
+      }
+    },
+    "/role": {
+      "post": {
+        "summary": "Crear un nuevo rol",
+        "description": "Crea un nuevo rol para la tienda. Requiere autenticación.",
+        "tags": [
+          "Role"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "slug"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Gerente"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "gerente"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Rol de gerente de tienda"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rol creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los roles",
+        "description": "Lista todos los roles de la tienda del usuario autenticado",
+        "tags": [
+          "Role"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "storeId",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID de la tienda (se obtiene automáticamente del token)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de roles",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "slug": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/role/{id}": {
+      "get": {
+        "summary": "Obtener un rol por ID",
+        "tags": [
+          "Role"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID del rol"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rol encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "slug": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Rol no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un rol",
+        "tags": [
+          "Role"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "slug": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rol actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Rol no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un rol",
+        "tags": [
+          "Role"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rol eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Rol no encontrado"
+          }
+        }
+      }
+    },
+    "/status": {
+      "post": {
+        "summary": "Crear un nuevo estado (PROTEGIDO)",
+        "description": "Requiere autenticación válida",
+        "tags": [
+          "Status"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Nombre del estado"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Estado creado exitosamente"
+          },
+          "401": {
+            "description": "Token requerido"
+          },
+          "403": {
+            "description": "Token inválido"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los estados",
+        "description": "Acceso público",
+        "tags": [
+          "Status"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de estados"
+          }
+        }
+      }
+    },
+    "/status/{id}": {
+      "get": {
+        "summary": "Obtener estado por ID",
+        "description": "Acceso público",
+        "tags": [
+          "Status"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado encontrado"
+          },
+          "404": {
+            "description": "Estado no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un estado (PROTEGIDO)",
+        "description": "Requiere autenticación válida",
+        "tags": [
+          "Status"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un estado (PROTEGIDO)",
+        "description": "Requiere autenticación válida",
+        "tags": [
+          "Status"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado eliminado"
+          }
+        }
+      }
+    },
+    "/subscription": {
+      "post": {
+        "summary": "Crear una nueva suscripción",
+        "description": "Crea una nueva suscripción para la tienda autenticada a un plan específico",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "planId"
+                ],
+                "properties": {
+                  "planId": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "billingCycleId": {
+                    "type": "integer",
+                    "example": 1,
+                    "description": "ID del ciclo de facturación (opcional)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Suscripción creada exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    },
+                    "planId": {
+                      "type": "integer"
+                    },
+                    "startDate": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "endDate": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "payment": {
+                      "type": "integer",
+                      "enum": [
+                        0,
+                        1,
+                        2
+                      ],
+                      "description": "0=pendiente, 1=pagado, 2=rechazado"
+                    },
+                    "statusId": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "La tienda ya tiene una suscripción activa o error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las suscripciones de la tienda",
+        "description": "Lista todas las suscripciones de la tienda autenticada",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de suscripciones",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "planId": {
+                            "type": "integer"
+                          },
+                          "startDate": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "endDate": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/subscription/{id}": {
+      "get": {
+        "summary": "Obtener detalle de una suscripción",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suscripción encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Suscripción no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una suscripción",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "planId": {
+                    "type": "integer"
+                  },
+                  "billingCycleId": {
+                    "type": "integer"
+                  },
+                  "endDate": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Suscripción actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Suscripción no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una suscripción",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Suscripción eliminada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Suscripción no encontrada"
+          }
+        }
+      }
+    },
+    "/subscription/{id}/payment": {
+      "patch": {
+        "summary": "Actualizar estado de pago",
+        "description": "Actualiza el estado de pago de una suscripción",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "payment"
+                ],
+                "properties": {
+                  "payment": {
+                    "type": "integer",
+                    "enum": [
+                      0,
+                      1,
+                      2
+                    ],
+                    "example": 1,
+                    "description": "0=pendiente, 1=pagado, 2=rechazado"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado de pago actualizado"
+          },
+          "400": {
+            "description": "Valor de payment inválido"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Suscripción no encontrada"
+          }
+        }
+      }
+    },
+    "/subscription/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de la suscripción",
+        "tags": [
+          "Subscription"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Suscripción no encontrada"
+          }
+        }
+      }
+    }
+  },
+  "tags": []
+}
