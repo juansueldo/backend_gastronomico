@@ -28,9 +28,10 @@ import productRoutes from './src/routes/product.js';
 import userRoutes from './src/routes/user.js';
 import websocketRoutes from './src/routes/websocket.js';
 
-
+const version = process.env.API_VERSION || 'v1';
 process.removeAllListeners('warning');
 process.on('warning', () => {});
+
 
 const app = express();
 // Middleware JSON
@@ -54,6 +55,9 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization']
 };
 
+// Middleware CORS
+app.use(cors(corsOptions));
+
 if (process.env.NODE_ENV !== 'production') {
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
   app.get('/', (req, res) => res.redirect('/docs'));
@@ -71,33 +75,33 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 
 
 // Rutas públicas (sin autenticación)
-app.use('/auth', authRoutes);
+app.use(`/${version}/auth`, authRoutes);
 
 // Rutas con autenticación opcional (GET públicas, CREATE protegidas en la ruta)
-app.use('/status', authOptional, statusRoutes);
-app.use('/role', authOptional, roleRoutes);
-app.use('/network', authOptional, networkRoutes);
-app.use('/plan', authOptional, planRoutes);
-app.use('/plan-price', authOptional, planPriceRoutes);
-app.use('/plan-features', authOptional, planFeaturesRoutes);
-app.use('/billing-cycle', authOptional, billingCycleRoutes);
-app.use('/instance', authOptional, instanceRoutes);
+app.use(`/${version}/status`, authOptional, statusRoutes);
+app.use(`/${version}/role`, authOptional, roleRoutes);
+app.use(`/${version}/network`, authOptional, networkRoutes);
+app.use(`/${version}/plan`, authOptional, planRoutes);
+app.use(`/${version}/plan-price`, authOptional, planPriceRoutes);
+app.use(`/${version}/plan-features`, authOptional, planFeaturesRoutes);
+app.use(`/${version}/billing-cycle`, authOptional, billingCycleRoutes);
+app.use(`/${version}/instance`, authOptional, instanceRoutes);
 
 // Rutas de datos (mixtas)
-app.use('/customer', authOptional, customerRoutes);
-app.use('/contact', authOptional, contactRoutes);
+app.use(`/${version}/customer`, authOptional, customerRoutes);
+app.use(`/${version}/contact`, authOptional, contactRoutes);
 
 // Rutas protegidas (requieren autenticación válida)
-app.use('/order', authRequired, orderRoutes);
-app.use('/delivery-zone', authRequired, deliveryZoneRoutes);
-app.use('/subscription', authRequired, subscriptionRoutes);
-app.use('/table', authRequired, tableRoutes);
-app.use('/waiter', authRequired, waiterRoutes);
-app.use('/product', authRequired, productRoutes);
-app.use('/user', authRequired, userRoutes);
+app.use(`/${version}/order`, authRequired, orderRoutes);
+app.use(`/${version}/delivery-zone`, authRequired, deliveryZoneRoutes);
+app.use(`/${version}/subscription`, authRequired, subscriptionRoutes);
+app.use(`/${version}/table`, authRequired, tableRoutes);
+app.use(`/${version}/waiter`, authRequired, waiterRoutes);
+app.use(`/${version}/product`, authRequired, productRoutes);
+app.use(`/${version}/user`, authRequired, userRoutes);
 
 // Rutas WebSocket (status y debugging)
-app.use('/websocket', authOptional, websocketRoutes);
+app.use(`/${version}/websocket`, authOptional, websocketRoutes);
 
 
 export default app;

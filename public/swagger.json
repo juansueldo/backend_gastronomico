@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://backend-gastronomico.onrender.com/"
+      "url": "https://backend-gastronomico.onrender.com"
     }
   ],
   "components": {
@@ -1790,7 +1790,7 @@
     "/order": {
       "post": {
         "summary": "Crear una nueva orden",
-        "description": "Crea una orden con múltiples items. Para órdenes de delivery, se valida que las coordenadas estén dentro de una zona de entrega registrada.",
+        "description": "Crea una orden con múltiples items. Para órdenes de delivery, se valida que las coordenadas estén dentro de una zona de entrega registrada. Para órdenes dine-in, se puede asociar una mesa y un mozo.",
         "tags": [
           "Orders"
         ],
@@ -1849,6 +1849,14 @@
                     ],
                     "description": "Tipo de orden"
                   },
+                  "tableId": {
+                    "type": "integer",
+                    "description": "ID de la mesa (solo para órdenes dine-in, opcional)"
+                  },
+                  "waiterId": {
+                    "type": "integer",
+                    "description": "ID del mozo/camarero (opcional)"
+                  },
                   "delivery_address": {
                     "type": "string",
                     "description": "Dirección de entrega (requerida si type es delivery)"
@@ -1896,6 +1904,14 @@
                     "status": {
                       "type": "string"
                     },
+                    "tableId": {
+                      "type": "integer",
+                      "nullable": true
+                    },
+                    "waiterId": {
+                      "type": "integer",
+                      "nullable": true
+                    },
                     "delivery_address": {
                       "type": "string"
                     },
@@ -1924,7 +1940,7 @@
             "description": "Validación fallida o coordenadas fuera de zona de entrega"
           },
           "404": {
-            "description": "Tienda o producto no encontrado"
+            "description": "Tienda, producto, mesa o mozo no encontrado"
           }
         }
       },
@@ -2714,6 +2730,714 @@
             "description": "Característica no encontrada"
           }
         }
+      }
+    },
+    "/plan-price": {
+      "post": {
+        "summary": "Crear un nuevo precio para un plan",
+        "description": "Crea un nuevo registro de precio para un plan específico con soporte multi-moneda",
+        "tags": [
+          "PlanPrice"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "planId",
+                  "price",
+                  "currency"
+                ],
+                "properties": {
+                  "planId": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "price": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 99.99
+                  },
+                  "currency": {
+                    "type": "string",
+                    "example": "USD",
+                    "description": "Código ISO 4217 (USD, EUR, UYU, ARS, BRL, etc.)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Precio de plan creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "planId": {
+                      "type": "integer"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "statusId": {
+                      "type": "integer"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los precios de planes",
+        "tags": [
+          "PlanPrice"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de precios de planes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "integer"
+                          },
+                          "price": {
+                            "type": "number"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "Plan": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/plan-price/{id}": {
+      "get": {
+        "summary": "Obtener un precio de plan por ID",
+        "tags": [
+          "PlanPrice"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Precio de plan encontrado"
+          },
+          "404": {
+            "description": "Precio de plan no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un precio de plan",
+        "tags": [
+          "PlanPrice"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "price": {
+                    "type": "number"
+                  },
+                  "currency": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Precio actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Precio de plan no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un precio de plan",
+        "tags": [
+          "PlanPrice"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Precio eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Precio de plan no encontrado"
+          }
+        }
+      }
+    },
+    "/plan-price/plan/{planId}": {
+      "get": {
+        "summary": "Obtener precios de un plan específico",
+        "description": "Lista todos los precios en diferentes monedas de un plan",
+        "tags": [
+          "PlanPrice"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "planId",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de precios del plan"
+          },
+          "404": {
+            "description": "Plan no encontrado"
+          }
+        }
+      }
+    },
+    "/plan-price/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de un precio de plan",
+        "tags": [
+          "PlanPrice"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer",
+                    "example": 1
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Precio de plan no encontrado"
+          }
+        }
+      }
+    },
+    "/product": {
+      "post": {
+        "summary": "Crear un nuevo producto",
+        "description": "Crea un nuevo producto con soporte para imagen en base64. La imagen se guarda en un directorio por tienda en /public/images/products/store_{storeId}/",
+        "tags": [
+          "Product"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "price"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Nombre del producto",
+                    "example": "Pizza Margarita"
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "Descripción del producto",
+                    "example": "Pizza con salsa, queso y albahaca"
+                  },
+                  "price": {
+                    "type": "number",
+                    "description": "Precio del producto",
+                    "example": 15.99
+                  },
+                  "categoryId": {
+                    "type": "integer",
+                    "description": "ID de la categoría (opcional, si no existe se crea una nueva)"
+                  },
+                  "category": {
+                    "type": "string",
+                    "description": "Nombre de la categoría a crear (si no existe categoryId)",
+                    "example": "Pizzas"
+                  },
+                  "categorydescription": {
+                    "type": "string",
+                    "description": "Descripción de la categoría a crear"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "Imagen en base64 (puede incluir prefijo data:image/... o solo el string base64)",
+                    "example": "iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Producto creado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "image_url": {
+                      "type": "string",
+                      "description": "URL relativa de la imagen guardada",
+                      "example": "/images/products/store_1/product_1704067200000.png"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    },
+                    "categoryId": {
+                      "type": "integer"
+                    },
+                    "type": {
+                      "type": "string",
+                      "example": "simple"
+                    },
+                    "statusId": {
+                      "type": "integer"
+                    },
+                    "Store": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "Category": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validación fallida (campos requeridos faltantes, imagen base64 inválida)"
+          },
+          "401": {
+            "description": "No autorizado (falta token JWT)"
+          },
+          "404": {
+            "description": "Store no encontrada"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "Obtener todos los productos de la tienda",
+        "description": "Retorna todos los productos activos (statusId=1) de la tienda del usuario autenticado, ordenados por fecha de creación descendente",
+        "tags": [
+          "Product"
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de productos obtenida exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "price": {
+                        "type": "number"
+                      },
+                      "image_url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "type": {
+                        "type": "string"
+                      },
+                      "statusId": {
+                        "type": "integer"
+                      },
+                      "storeId": {
+                        "type": "integer"
+                      },
+                      "categoryId": {
+                        "type": "integer"
+                      },
+                      "Store": {
+                        "type": "object"
+                      },
+                      "Category": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado (falta token JWT)"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/product/{id}": {
+      "get": {
+        "summary": "Obtener un producto por ID",
+        "description": "Retorna los detalles completos de un producto, incluyendo su imagen y categoría",
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del producto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Producto encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "integer"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "type": "number"
+                    },
+                    "image_url": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    },
+                    "statusId": {
+                      "type": "integer"
+                    },
+                    "storeId": {
+                      "type": "integer"
+                    },
+                    "categoryId": {
+                      "type": "integer"
+                    },
+                    "Store": {
+                      "type": "object"
+                    },
+                    "Category": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado (falta token JWT)"
+          },
+          "403": {
+            "description": "Prohibido (producto no pertenece a tu tienda)"
+          },
+          "404": {
+            "description": "Producto no encontrado"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Actualizar un producto",
+        "description": "Actualiza los datos de un producto. Si se proporciona una nueva imagen, la imagen anterior se elimina automáticamente.",
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del producto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "categoryId": {
+                    "type": "integer"
+                  },
+                  "image": {
+                    "type": "string",
+                    "description": "Nueva imagen en base64 (opcional). Si se proporciona, reemplaza la imagen anterior."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Producto actualizado exitosamente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autorizado (falta token JWT)"
+          },
+          "403": {
+            "description": "Prohibido (producto no pertenece a tu tienda)"
+          },
+          "404": {
+            "description": "Producto no encontrado"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "Eliminar un producto",
+        "description": "Elimina un producto y su imagen asociada del servidor",
+        "tags": [
+          "Product"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID del producto",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Producto eliminado exitosamente"
+          },
+          "401": {
+            "description": "No autorizado (falta token JWT)"
+          },
+          "403": {
+            "description": "Prohibido (producto no pertenece a tu tienda)"
+          },
+          "404": {
+            "description": "Producto no encontrado"
+          }
+        },
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
       }
     },
     "/role": {
@@ -3514,6 +4238,620 @@
           },
           "404": {
             "description": "Suscripción no encontrada"
+          }
+        }
+      }
+    },
+    "/table": {
+      "post": {
+        "summary": "Crear una nueva mesa",
+        "description": "Crea una nueva mesa en el restaurante de la tienda autenticada",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name",
+                  "table_number"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Mesa 1"
+                  },
+                  "table_number": {
+                    "type": "integer",
+                    "example": 1
+                  },
+                  "capacity": {
+                    "type": "integer",
+                    "example": 4
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "Sector 1"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Mesa con vista a la ventana"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mesa creada exitosamente"
+          },
+          "400": {
+            "description": "Error de validación o mesa duplicada"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todas las mesas",
+        "description": "Lista todas las mesas de la tienda autenticada",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mesas"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/table/{id}": {
+      "get": {
+        "summary": "Obtener detalle de una mesa",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mesa encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mesa no encontrada"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar una mesa",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "table_number": {
+                    "type": "integer"
+                  },
+                  "capacity": {
+                    "type": "integer"
+                  },
+                  "location": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mesa actualizada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mesa no encontrada"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar una mesa",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mesa eliminada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mesa no encontrada"
+          }
+        }
+      }
+    },
+    "/table/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de una mesa",
+        "tags": [
+          "Table"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mesa no encontrada"
+          }
+        }
+      }
+    },
+    "/waiter": {
+      "post": {
+        "summary": "Crear un nuevo mozo",
+        "description": "Crea un nuevo empleado mozo en la tienda autenticada",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstname",
+                  "lastname"
+                ],
+                "properties": {
+                  "firstname": {
+                    "type": "string",
+                    "example": "Juan"
+                  },
+                  "lastname": {
+                    "type": "string",
+                    "example": "Pérez"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "juan@example.com"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "+598912345678"
+                  },
+                  "identification": {
+                    "type": "string",
+                    "example": "12345678-9"
+                  },
+                  "salary": {
+                    "type": "number",
+                    "format": "float",
+                    "example": 20000
+                  },
+                  "hire_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2024-01-01"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Mozo creado exitosamente"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener todos los mozos",
+        "description": "Lista todos los mozos de la tienda autenticada",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de mozos"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/waiter/{id}": {
+      "get": {
+        "summary": "Obtener detalle de un mozo",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mozo encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mozo no encontrado"
+          }
+        }
+      },
+      "patch": {
+        "summary": "Actualizar un mozo",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstname": {
+                    "type": "string"
+                  },
+                  "lastname": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "identification": {
+                    "type": "string"
+                  },
+                  "salary": {
+                    "type": "number"
+                  },
+                  "hire_date": {
+                    "type": "string"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mozo actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mozo no encontrado"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Eliminar un mozo",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mozo eliminado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mozo no encontrado"
+          }
+        }
+      }
+    },
+    "/waiter/{id}/status": {
+      "patch": {
+        "summary": "Actualizar estado de un mozo",
+        "tags": [
+          "Waiter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "statusId"
+                ],
+                "properties": {
+                  "statusId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Estado actualizado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Acceso denegado"
+          },
+          "404": {
+            "description": "Mozo no encontrado"
+          }
+        }
+      }
+    },
+    "/websocket/status": {
+      "get": {
+        "summary": "Obtener estado del servidor WebSocket",
+        "description": "Retorna información sobre conexiones activas, tiendas conectadas y estadísticas",
+        "tags": [
+          "WebSocket"
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado del servidor WebSocket",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "totalConnections": {
+                      "type": "integer",
+                      "description": "Total de conexiones WebSocket activas"
+                    },
+                    "storesConnected": {
+                      "type": "integer",
+                      "description": "Cantidad de tiendas con conexiones activas"
+                    },
+                    "stores": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "storeId": {
+                            "type": "integer"
+                          },
+                          "connectedUsers": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
