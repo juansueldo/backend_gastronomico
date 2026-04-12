@@ -24,6 +24,7 @@ import deliveryZoneRoutes from './src/routes/deliveryZone.js';
 import subscriptionRoutes from './src/routes/subscription.js';
 import tableRoutes from './src/routes/table.js';
 import waiterRoutes from './src/routes/waiter.js';
+import categoryRoutes from './src/routes/category.js';
 import productRoutes from './src/routes/product.js';
 import userRoutes from './src/routes/user.js';
 import websocketRoutes from './src/routes/websocket.js';
@@ -97,6 +98,7 @@ app.use(`/${version}/delivery-zone`, authRequired, deliveryZoneRoutes);
 app.use(`/${version}/subscription`, authRequired, subscriptionRoutes);
 app.use(`/${version}/table`, authRequired, tableRoutes);
 app.use(`/${version}/waiter`, authRequired, waiterRoutes);
+app.use(`/${version}/category`, authRequired, categoryRoutes);
 app.use(`/${version}/product`, authRequired, productRoutes);
 app.use(`/${version}/user`, authRequired, userRoutes);
 
