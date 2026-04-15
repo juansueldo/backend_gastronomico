@@ -15,7 +15,7 @@ const options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
+        url: 'https://backend-gastronomico.onrender.com',
         description: 'Servidor de desarrollo'
       }
     ],
