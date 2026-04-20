@@ -2,7 +2,7 @@ import { DataTypes } from 'sequelize';
 import sequelize from './db.js';
 import Store from './store.js';
 import Status from './status.js';
-import { Headquarter } from './headquarter.js';
+import  Headquarter from './headquarter.js';
 
 const Table = sequelize.define('Table', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
