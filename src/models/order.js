@@ -4,7 +4,7 @@ import Status from './status.js';
 import Store from './store.js';
 import User from './user.js';
 import DeliveryZone from './deliveryZone.js';
-import { Headquarter } from './headquarter.js';
+import Headquarter from './headquarter.js';
 
 const Order = sequelize.define('Order', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
