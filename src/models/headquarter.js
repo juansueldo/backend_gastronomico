@@ -12,3 +12,5 @@ const Headquarter = sequelize.define('Headquarter', {
 
 Headquarter.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 }); // Asignar statusId por defecto a 1 (Activo)
 Headquarter.belongsTo(Store, { foreignKey: 'storeId', allowNull: false }); // Cada sede debe pertenecer a una tienda
+
+export default Headquarter;
