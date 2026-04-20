@@ -3,7 +3,7 @@ import sequelize from './db.js';
 import Status from './status.js';
 import Store from './store.js';
 import InventoryItem from './inventoryItem.js';
-import { Headquarter } from './headquarter.js';
+import  Headquarter  from './headquarter.js';
 
 const StockMovement = sequelize.define('StockMovement', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
