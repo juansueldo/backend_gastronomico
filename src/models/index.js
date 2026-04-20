@@ -3,6 +3,7 @@ import sequelize from './db.js';
 
 import Status from './status.js';
 import Customer from './customer.js';
+import Headquarter from './headquarter.js';
 import Contact from './contact.js';
 import User from './user.js';
 import Network from './network.js';
@@ -51,6 +52,7 @@ export {
   StockMovement,
   Table,
   Waiter,
+  Headquarter,
 };
 
 // Definir relaciones para evitar dependencias circulares

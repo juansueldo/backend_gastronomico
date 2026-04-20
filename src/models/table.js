@@ -2,6 +2,7 @@ import { DataTypes } from 'sequelize';
 import sequelize from './db.js';
 import Store from './store.js';
 import Status from './status.js';
+import { Headquarter } from './headquarter.js';
 
 const Table = sequelize.define('Table', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
@@ -15,5 +16,6 @@ const Table = sequelize.define('Table', {
 
 Table.belongsTo(Store, { foreignKey: 'storeId', allowNull: false });
 Table.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });
+Table.belongsTo(Headquarter, { foreignKey: 'headquarterId', allowNull: false }); // Cada mesa debe pertenecer a una sede
 
 export default Table;

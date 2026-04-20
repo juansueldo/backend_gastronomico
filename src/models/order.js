@@ -4,6 +4,7 @@ import Status from './status.js';
 import Store from './store.js';
 import User from './user.js';
 import DeliveryZone from './deliveryZone.js';
+import { Headquarter } from './headquarter.js';
 
 const Order = sequelize.define('Order', {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
@@ -24,5 +25,6 @@ Order.belongsTo(Store, { foreignKey: 'storeId' });
 Order.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });
 Order.belongsTo(User, { foreignKey: 'userId' });
 Order.belongsTo(DeliveryZone, { foreignKey: 'deliveryZoneId', allowNull: true });
+Order.belongsTo(Headquarter, { foreignKey: 'headquarterId', allowNull: false }); // Cada orden debe pertenecer a una sede
 
 export default Order;

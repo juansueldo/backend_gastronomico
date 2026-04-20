@@ -4,6 +4,7 @@ import sequelize from './db.js';
 import Store from './store.js';
 import Status from './status.js';
 import Role from './role.js';
+import Headquarter from './headquarter.js';
 
 const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
@@ -18,5 +19,6 @@ const User = sequelize.define('User', {
 User.belongsTo(Store, { foreignKey: 'storeId' });
 User.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });
 User.belongsTo(Role, { foreignKey: 'roleId', defaultValue: 1 });
+User.belongsTo(Headquarter, { foreignKey: 'headquarterId' });
 
 export default User;
