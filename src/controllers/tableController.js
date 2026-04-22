@@ -3,7 +3,7 @@ import { Table, Store, Status } from '../models/index.js';
 class TableController {
   static async create(req, res) {
     try {
-      const { name, table_number, capacity, location, description, metadata } = req.body;
+      const { name, table_number, capacity, location, description, metadata, headquarterId } = req.body;
       const storeId = req.user?.storeId;
 
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
@@ -30,7 +30,8 @@ class TableController {
         location,
         description,
         metadata,
-        statusId: 1
+        statusId: 1,
+        headquarterId
       });
 
       const result = await Table.findByPk(table.id, {

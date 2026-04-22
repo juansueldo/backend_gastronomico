@@ -1,7 +1,7 @@
 import { Headquarter } from '../models/index.js';
 
 class HeadquarterController {
-    static async createHeadquarter(req, res) {
+    static async create(req, res) {
         try {
             const { name, phone, location } = req.body;
             const storeId = req.user?.storeId;
@@ -12,7 +12,7 @@ class HeadquarterController {
         }
     }
 
-    static async getHeadquarters(req, res) {
+    static async getList(req, res) {
         try {
             const storeId = req.user?.storeId;
             const headquarters = await Headquarter.findAll({ where: { storeId } });
@@ -22,3 +22,5 @@ class HeadquarterController {
         }
     }
 }
+
+export default HeadquarterController;

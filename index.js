@@ -28,6 +28,7 @@ import categoryRoutes from './src/routes/category.js';
 import productRoutes from './src/routes/product.js';
 import userRoutes from './src/routes/user.js';
 import websocketRoutes from './src/routes/websocket.js';
+import headquarterRoutes from './src/routes/headquarter.js';
 
 const version = process.env.API_VERSION || 'v1';
 process.removeAllListeners('warning');
@@ -101,6 +102,7 @@ app.use(`/${version}/waiter`, authRequired, waiterRoutes);
 app.use(`/${version}/category`, authRequired, categoryRoutes);
 app.use(`/${version}/product`, authRequired, productRoutes);
 app.use(`/${version}/user`, authRequired, userRoutes);
+app.use(`/${version}/headquarter`, authRequired, headquarterRoutes);
 
 // Rutas WebSocket (status y debugging)
 app.use(`/${version}/websocket`, authOptional, websocketRoutes);
