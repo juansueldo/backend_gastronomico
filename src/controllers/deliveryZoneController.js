@@ -8,10 +8,13 @@ class DeliveryZoneController {
    */
   static async create(req, res) {
     try {
-      const { storeId, name, polygon, metadata, zoneid } = req.body;
+      const { name, polygon, metadata, zoneid } = req.body;
 
       // Validaciones
-      if (!storeId) return res.status(400).json({ error: 'storeId es requerido' });
+      const storeId = req.user?.storeId;
+      if (!storeId) {
+          return res.status(401).json({ error: 'storeId no encontrado en el token' });
+      }
       if (!name) return res.status(400).json({ error: 'name es requerido' });
       if (!polygon) return res.status(400).json({ error: 'polygon es requerido (formato GeoJSON o WKT)' });
 
@@ -49,7 +52,7 @@ class DeliveryZoneController {
       }
 
       const zones = await DeliveryZone.findAndCountAll({
-        where: { storeId, statusId: 1 },
+        where: { storeId },
         include: [{ model: Store, attributes: ['id', 'name'] }, { model: Status, attributes: ['id', 'name'] }],
       });
 
