@@ -1,6 +1,6 @@
 
 import bcrypt from 'bcrypt';
-import { Store, User, Role } from '../models/index.js';
+import { Store, User, Role, Headquarter } from '../models/index.js';
 import { generateToken } from '../middleware/token.js';
 
 class AuthController {
@@ -12,10 +12,12 @@ class AuthController {
         if(await Store.findOne({ where: { slug } })) throw new Error('Store slug already exists');
         if(await Store.findOne({ where: { email } })) throw new Error('Store email already exists');
         if(await Store.findOne({ where: { name: storename } })) throw new Error('Store name already exists');
-        if(await User.findOne({ where: { username } })) throw new Error('Username already exists');
+        if(await User.findOne({ where:  { username } })) throw new Error('Username already exists');
         const hashedPassword = await bcrypt.hash(password, 10);
         if (!store) throw new Error('Error creating store');
-        const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId: store.id, statusId: 1, roleId: 1 });
+        const headquarter = await Headquarter.create({name:'central', phone: '', location});
+        if(!headquarter) throw new Error('Error create headquarter')
+        const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId: store.id, headquarterId: headquarter.id,statusId: 1, roleId: 1 });
         if (!user) throw new Error('Error creating user');
         res.status(201).json({ store, user });
     }catch (err) {

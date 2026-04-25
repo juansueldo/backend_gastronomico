@@ -76,6 +76,9 @@ Table.hasMany(Order, { foreignKey: 'tableId' });
 Order.belongsTo(Waiter, { foreignKey: 'waiterId', allowNull: true });
 Waiter.hasMany(Order, { foreignKey: 'waiterId' });
 
+Order.hasMany(OrderItem, {foreignKey: 'orderId'});
+
+OrderItem.belongsTo(Order, {foreignKey: 'orderId'});
 // Sincroniza todos los modelos
 export async function syncModels() {
   await sequelize.sync({ alter: true });

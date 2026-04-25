@@ -11,4 +11,7 @@ router.get('/', async (req, res) => {
   await HeadquarterController.getList(req, res);
 });
 
+router.get('/:id', async(req, res)=>{
+  await HeadquarterController.getById(req, res);
+})
 export default router;

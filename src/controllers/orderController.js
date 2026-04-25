@@ -4,7 +4,7 @@ import { Op } from 'sequelize';
 // Función para validar si un punto está dentro de un polígono (ray-casting algorithm)
 function isPointInPolygon(lat, lon, polygon) {
   // polygon puede ser un objeto GeoJSON o un array de coordenadas
-  let coordinates = polygon;
+  let orderWithItemscoordinates = polygon;
   
   if (polygon.type === 'Polygon') {
     coordinates = polygon.coordinates[0]; // Tomar el primer anillo (exterior)
@@ -41,10 +41,13 @@ function isPointInPolygon(lat, lon, polygon) {
 class OrderController {
   static async create(req, res) {
     try {
-      const { storeId, customerId, userId, items, type, delivery_address, delivery_latitude, delivery_longitude, delivery_date, tableId, waiterId } = req.body;
+      const { customerId, userId, items, type, delivery_address, delivery_latitude, delivery_longitude, delivery_date, tableId, waiterId } = req.body;
 
       // Validaciones
-      if (!storeId) return res.status(400).json({ error: 'storeId es requerido' });
+      const storeId = req.user?.storeId;
+      if (!storeId) {
+          return res.status(401).json({ error: 'storeId no encontrado en el token' });
+      }
       if (!userId) return res.status(400).json({ error: 'userId es requerido' });
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ error: 'items debe ser un array no vacío' });
@@ -176,7 +179,7 @@ class OrderController {
       // Retornar la orden con sus items
       const orderWithItems = await Order.findByPk(order.id, {
         include: [
-          { model: OrderItem, include: [Product] },
+          { model: OrderItem, as: 'items', include: [Product] },
           { model: Store, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] },
           { model: DeliveryZone, attributes: ['id', 'name', 'zoneid'] },
@@ -221,10 +224,9 @@ class OrderController {
    */
   static async getByStore(req, res) {
     try {
-      const { storeId } = req.query;
-
+      const storeId = req.user?.storeId;
       if (!storeId) {
-        return res.status(400).json({ error: 'storeId es requerido' });
+          return res.status(401).json({ error: 'storeId no encontrado en el token' });
       }
 
       const orders = await Order.findAndCountAll({

@@ -3,7 +3,6 @@ import sequelize from './db.js';
 import Status from './status.js';
 import Store from './store.js';
 import Product from './product.js';
-import Order from './order.js';
 import Headquarter from './headquarter.js';
 
 const OrderItem = sequelize.define('OrderItem', {
@@ -12,7 +11,7 @@ const OrderItem = sequelize.define('OrderItem', {
   price: { type: DataTypes.FLOAT, allowNull: false },
 });
 
-OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
+ // usar alias consistente
 OrderItem.belongsTo(Product, { foreignKey: 'productId' });
 OrderItem.belongsTo(Store, { foreignKey: 'storeId' });
 OrderItem.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });

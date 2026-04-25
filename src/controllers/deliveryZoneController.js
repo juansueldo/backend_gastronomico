@@ -45,10 +45,9 @@ class DeliveryZoneController {
    */
   static async getByStore(req, res) {
     try {
-      const { storeId } = req.query;
-
+      const storeId = req.user?.storeId;
       if (!storeId) {
-        return res.status(400).json({ error: 'storeId es requerido' });
+          return res.status(401).json({ error: 'storeId no encontrado en el token' });
       }
 
       const zones = await DeliveryZone.findAndCountAll({
