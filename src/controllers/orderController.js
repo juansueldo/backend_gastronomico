@@ -76,7 +76,7 @@ async function getOrderWithRelations(orderId, storeId) {
     where: { id: orderId, storeId },
     include: [
       { model: OrderItem, include: [Product, { model: Status, attributes: ['id', 'name'] }] },
-      { model: Customer, attributes: ['id', 'firstname', 'lastname', 'phone'] },
+      { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
       { model: Store, attributes: ['id', 'name'] },
       { model: Status, attributes: ['id', 'name'] },
       { model: DeliveryZone, attributes: ['id', 'name', 'zoneid'] },
@@ -109,7 +109,9 @@ class OrderController {
   static async create(req, res) {
     try {
       const {
-        customerId,
+        customerId, 
+        customerName, 
+        customerPhone,
         delivery_address,
         delivery_date,
         delivery_latitude,
@@ -126,6 +128,17 @@ class OrderController {
       const storeId = req.user?.storeId;
       if (!storeId) {
         return res.status(401).json({ error: 'storeId no encontrado en el token' });
+      }
+      if(!customerId){
+          if(!customerName) return res.status(400).json({ error: 'customerName es requerido si no se proporciona customerId' });
+          if(!customerPhone) return res.status(400).json({ error: 'customerPhone es requerido si no se proporciona customerId' });
+          const existingCustomer = await Customer.findOne({ where: { phone: customerPhone, storeId } });
+          if (!existingCustomer) {
+            const customer = await Customer.create({ name: customerName, phone: customerPhone, storeId, statusId: 1 });
+            req.body.customerId = customer.id;
+          }else{
+            req.body.customerId = existingCustomer.id;
+          }
       }
       if (!userId) return res.status(400).json({ error: 'userId es requerido' });
       if (!headquarterId) return res.status(400).json({ error: 'headquarterId es requerido' });

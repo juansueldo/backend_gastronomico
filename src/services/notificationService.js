@@ -5,6 +5,17 @@
 
 let ioInstance = null;
 
+function formatCustomer(customer) {
+  if (!customer) return null;
+
+  return {
+    id: customer.id,
+    name: customer.name ?? null,
+    phone: customer.phone ?? null,
+    email: customer.email ?? null,
+  };
+}
+
 class NotificationService {
   /**
    * Inicializar el servicio con la instancia de Socket.io
@@ -77,7 +88,8 @@ class NotificationService {
         userId: order.userId,
         customerId: order.customerId,
         tableId: order.tableId,
-        waiterId: order.waiterId
+        waiterId: order.waiterId,
+        Customer: formatCustomer(order.Customer)
       }
     });
   }
