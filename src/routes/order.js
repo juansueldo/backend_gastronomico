@@ -8,9 +8,11 @@ const router = express.Router();
  * /order:
  *   post:
  *     summary: Crear una nueva orden
- *     description: Crea una orden con múltiples items. Para órdenes de delivery, se valida que las coordenadas estén dentro de una zona de entrega registrada. Para órdenes dine-in, se puede asociar una mesa y un mozo.
+ *     description: Crea una orden para la tienda autenticada. Todas las órdenes deben asociarse a una sede y, si son delivery, la dirección debe pertenecer a una zona activa de esa sede.
  *     tags:
- *       - Orders
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -18,14 +20,14 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - storeId
+ *               - headquarterId
  *               - userId
  *               - items
  *               - type
  *             properties:
- *               storeId:
+ *               headquarterId:
  *                 type: integer
- *                 description: ID de la tienda
+ *                 description: ID de la sede que gestionará la orden
  *               userId:
  *                 type: integer
  *                 description: ID del usuario que crea la orden
@@ -53,25 +55,25 @@ const router = express.Router();
  *                 description: Tipo de orden
  *               tableId:
  *                 type: integer
- *                 description: ID de la mesa (solo para órdenes dine-in, opcional)
+ *                 description: ID de la mesa. Solo se permite para órdenes dine-in
  *               waiterId:
  *                 type: integer
  *                 description: ID del mozo/camarero (opcional)
  *               delivery_address:
  *                 type: string
- *                 description: Dirección de entrega (requerida si type es delivery)
+ *                 description: Dirección de entrega. Requerida si type es delivery
  *               delivery_latitude:
  *                 type: number
  *                 format: float
- *                 description: Latitud de la dirección de entrega (requerida si type es delivery)
+ *                 description: Latitud de entrega. Requerida si type es delivery
  *               delivery_longitude:
  *                 type: number
  *                 format: float
- *                 description: Longitud de la dirección de entrega (requerida si type es delivery)
+ *                 description: Longitud de entrega. Requerida si type es delivery
  *               delivery_date:
  *                 type: string
  *                 format: date-time
- *                 description: Fecha de entrega (requerida si type es delivery)
+ *                 description: Fecha estimada de entrega
  *     responses:
  *       201:
  *         description: Orden creada exitosamente
@@ -102,6 +104,8 @@ const router = express.Router();
  *                   type: number
  *                 delivery_longitude:
  *                   type: number
+ *                 headquarterId:
+ *                   type: integer
  *                 storeId:
  *                   type: integer
  *                 userId:
@@ -111,8 +115,12 @@ const router = express.Router();
  *                   nullable: true
  *       400:
  *         description: Validación fallida o coordenadas fuera de zona de entrega
+ *       401:
+ *         description: No autorizado
+ *       403:
+ *         description: Alguna relación no pertenece a la tienda autenticada
  *       404:
- *         description: Tienda, producto, mesa o mozo no encontrado
+ *         description: Usuario, cliente, sede, tienda, producto, mesa o mozo no encontrado
  */
 router.post('/', async (req, res) => {
   await OrderController.create(req, res);
@@ -123,9 +131,11 @@ router.post('/', async (req, res) => {
  * /order/{id}:
  *   get:
  *     summary: Obtener una orden por ID
- *     description: Retorna los detalles completos de una orden incluyendo sus items y productos asociados.
+ *     description: Retorna los detalles completos de una orden perteneciente a la tienda autenticada.
  *     tags:
- *       - Orders
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -164,6 +174,8 @@ router.post('/', async (req, res) => {
  *                         type: number
  *                       Product:
  *                         type: object
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Orden no encontrada
  */
@@ -176,16 +188,11 @@ router.get('/:id', async (req, res) => {
  * /order:
  *   get:
  *     summary: Obtener todas las órdenes de una tienda
- *     description: Retorna todas las órdenes de una tienda específica con paginación implícita.
+ *     description: Retorna todas las órdenes de la tienda autenticada ordenadas por fecha.
  *     tags:
- *       - Orders
- *     parameters:
- *       - name: storeId
- *         in: query
- *         required: true
- *         description: ID de la tienda
- *         schema:
- *           type: integer
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Órdenes de la tienda
@@ -201,7 +208,9 @@ router.get('/:id', async (req, res) => {
  *                   items:
  *                     type: object
  *       400:
- *         description: storeId requerido
+ *         description: Error al obtener las órdenes
+ *       401:
+ *         description: No autorizado
  */
 router.get('/', async (req, res) => {
   await OrderController.getByStore(req, res);
@@ -212,9 +221,11 @@ router.get('/', async (req, res) => {
  * /order/{id}/status:
  *   patch:
  *     summary: Actualizar estado de una orden
- *     description: Cambia el estado de una orden (pending, processing, completed, cancelled).
+ *     description: Cambia el estado de una orden respetando el flujo pending -> processing -> ready -> completed. También permite cancelar desde pending, processing o ready.
  *     tags:
- *       - Orders
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -233,13 +244,15 @@ router.get('/', async (req, res) => {
  *             properties:
  *               status:
  *                 type: string
- *                 enum: [pending, processing, completed, cancelled]
+ *                 enum: [pending, processing, ready, completed, cancelled]
  *                 description: Nuevo estado de la orden
  *     responses:
  *       200:
  *         description: Estado actualizado exitosamente
  *       400:
- *         description: Estado inválido
+ *         description: Estado inválido o transición no permitida
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Orden no encontrada
  */
@@ -249,12 +262,107 @@ router.patch('/:id/status', async (req, res) => {
 
 /**
  * @swagger
+ * /order/{id}/production:
+ *   patch:
+ *     summary: Enviar una orden a producción
+ *     description: Cambia el estado de la orden de pending a processing.
+ *     tags:
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: ID de la orden
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Orden enviada a producción
+ *       400:
+ *         description: La transición no está permitida
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Orden no encontrada
+ */
+router.patch('/:id/production', async (req, res) => {
+  await OrderController.moveToProduction(req, res);
+});
+
+/**
+ * @swagger
+ * /order/{id}/ready:
+ *   patch:
+ *     summary: Marcar una orden como lista
+ *     description: Cambia el estado de la orden de processing a ready.
+ *     tags:
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: ID de la orden
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Orden marcada como lista
+ *       400:
+ *         description: La transición no está permitida
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Orden no encontrada
+ */
+router.patch('/:id/ready', async (req, res) => {
+  await OrderController.markAsReady(req, res);
+});
+
+/**
+ * @swagger
+ * /order/{id}/finalize:
+ *   patch:
+ *     summary: Finalizar una orden
+ *     description: Cambia el estado de la orden de ready a completed.
+ *     tags:
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         description: ID de la orden
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: Orden finalizada
+ *       400:
+ *         description: La transición no está permitida
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Orden no encontrada
+ */
+router.patch('/:id/finalize', async (req, res) => {
+  await OrderController.finalize(req, res);
+});
+
+/**
+ * @swagger
  * /order/{id}:
  *   delete:
  *     summary: Eliminar una orden
- *     description: Elimina una orden y todos sus items asociados.
+ *     description: Elimina una orden de la tienda autenticada y todos sus items asociados.
  *     tags:
- *       - Orders
+ *       - Order
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -265,6 +373,8 @@ router.patch('/:id/status', async (req, res) => {
  *     responses:
  *       200:
  *         description: Orden eliminada exitosamente
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Orden no encontrada
  */

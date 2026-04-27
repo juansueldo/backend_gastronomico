@@ -25,36 +25,36 @@ const router = express.Router();
  *               - email
  *               - password
  *               - slug
- *     properties:
- *       storename:
- *         type: string
- *         example: "Mi Restaurante"
- *       slug:
- *         type: string
- *         example: "mi-restaurante"
- *       timezone:
- *         type: string
- *         example: "UTC-3"
- *       location:
- *         type: string
- *         example: "Montevideo"
- *       firstname:
- *         type: string
- *         example: "Juan"
- *       lastname:
- *         type: string
- *         example: "Pérez"
- *       username:
- *         type: string
- *         example: "juanperez"
- *       email:
- *         type: string
- *         format: email
- *         example: "juan@example.com"
- *       password:
- *         type: string
- *         format: password
- *         example: "securepassword123"
+ *             properties:
+ *               storename:
+ *                 type: string
+ *                 example: "Mi Restaurante"
+ *               slug:
+ *                 type: string
+ *                 example: "mi-restaurante"
+ *               timezone:
+ *                 type: string
+ *                 example: "UTC-3"
+ *               location:
+ *                 type: string
+ *                 example: "Montevideo"
+ *               firstname:
+ *                 type: string
+ *                 example: "Juan"
+ *               lastname:
+ *                 type: string
+ *                 example: "Pérez"
+ *               username:
+ *                 type: string
+ *                 example: "juanperez"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: "juan@example.com"
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: "securepassword123"
  *     responses:
  *       201:
  *         description: Usuario y tienda creados exitosamente

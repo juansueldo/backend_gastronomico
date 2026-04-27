@@ -22,17 +22,10 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
- *               - slug
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Gerente"
- *               slug:
- *                 type: string
- *                 example: "gerente"
- *               description:
- *                 type: string
- *                 example: "Rol de gerente de tienda"
  *     responses:
  *       201:
  *         description: Rol creado exitosamente
@@ -45,45 +38,29 @@ const router = express.Router();
  *                   type: integer
  *                 name:
  *                   type: string
- *                 slug:
- *                   type: string
- *                 storeId:
- *                   type: integer
  *       400:
  *         description: Error de validación
  *       401:
  *         description: No autorizado
  *   get:
  *     summary: Obtener todos los roles
- *     description: Lista todos los roles de la tienda del usuario autenticado
+ *     description: Lista todos los roles disponibles.
  *     tags:
  *       - Role
- *     security:
- *       - BearerAuth: []
- *     parameters:
- *       - in: query
- *         name: storeId
- *         schema:
- *           type: integer
- *         description: ID de la tienda (se obtiene automáticamente del token)
  *     responses:
  *       200:
  *         description: Lista de roles
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   slug:
- *                     type: string
- *       401:
- *         description: No autorizado
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 rows:
+ *                   type: array
+ *                   items:
+ *                     type: object
  * /role/{id}:
  *   get:
  *     summary: Obtener un rol por ID
@@ -108,8 +85,6 @@ const router = express.Router();
  *                   type: integer
  *                 name:
  *                   type: string
- *                 slug:
- *                   type: string
  *       404:
  *         description: Rol no encontrado
  *   patch:
@@ -132,10 +107,6 @@ const router = express.Router();
  *             type: object
  *             properties:
  *               name:
- *                 type: string
- *               slug:
- *                 type: string
- *               description:
  *                 type: string
  *     responses:
  *       200:

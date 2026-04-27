@@ -37,7 +37,7 @@ class CategoryController {
             if (!storeId) {
                 return res.status(401).json({ error: 'storeId no encontrado en el token' });
             }
-            const category = await Category.findByPk(id);
+            const category = await Category.findOne({ where: { id, storeId } });
             if (!category) {
                 return res.status(404).json({ error: 'Categoría no encontrada' });
             }
@@ -54,7 +54,7 @@ class CategoryController {
             if (!storeId) {
                 return res.status(401).json({ error: 'storeId no encontrado en el token' });
             }
-            const category = await Category.findByPk(id);
+            const category = await Category.findOne({ where: { id, storeId } });
             if (!category) {
                 return res.status(404).json({ error: 'Categoría no encontrada' });
             }

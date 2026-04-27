@@ -26,6 +26,7 @@ import DeliveryZone from './deliveryZone.js';
 import StockMovement from './stockMovement.js';
 import Table from './table.js';
 import Waiter from './waiter.js';
+import CashRegisterMovement from './cashRegisterMovement.js';
 
 export {
   Status,
@@ -53,6 +54,7 @@ export {
   Table,
   Waiter,
   Headquarter,
+  CashRegisterMovement,
 };
 
 // Definir relaciones para evitar dependencias circulares

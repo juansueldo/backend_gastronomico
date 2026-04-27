@@ -1,5 +1,6 @@
 import { DataTypes } from 'sequelize';
 import sequelize from './db.js';
+import Customer from './customer.js';
 import Status from './status.js';
 import Store from './store.js';
 import User from './user.js';
@@ -17,7 +18,7 @@ const Order = sequelize.define('Order', {
     delivery_latitude: { type: DataTypes.FLOAT, allowNull: true },
     delivery_longitude: { type: DataTypes.FLOAT, allowNull: true },
     delivery_date: { type: DataTypes.DATE, allowNull: true },
-    status: { type: DataTypes.ENUM, values: ['pending', 'processing', 'completed', 'cancelled'], allowNull: false, defaultValue: 'pending' },
+    status: { type: DataTypes.ENUM, values: ['pending', 'processing', 'ready', 'completed', 'cancelled'], allowNull: false, defaultValue: 'pending' },
     tableId: { type: DataTypes.INTEGER, allowNull: true },
     waiterId: { type: DataTypes.INTEGER, allowNull: true },
 });
@@ -25,6 +26,7 @@ const Order = sequelize.define('Order', {
 Order.belongsTo(Store, { foreignKey: 'storeId' });
 Order.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });
 Order.belongsTo(User, { foreignKey: 'userId' });
+Order.belongsTo(Customer, { foreignKey: 'customerId', allowNull: true });
 Order.belongsTo(DeliveryZone, { foreignKey: 'deliveryZoneId', allowNull: true });
 Order.belongsTo(Headquarter, { foreignKey: 'headquarterId', allowNull: false }); // Cada orden debe pertenecer a una sede
 

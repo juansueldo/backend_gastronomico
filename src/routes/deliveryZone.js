@@ -8,9 +8,11 @@ const router = express.Router();
  * /delivery-zone:
  *   post:
  *     summary: Crear una nueva zona de entrega
- *     description: Crea una zona de entrega para una tienda con un polígono geométrico.
+ *     description: Crea una zona de entrega para la tienda autenticada y la asocia a una sede.
  *     tags:
- *       - Delivery Zones
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -18,19 +20,19 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - storeId
+ *               - headquarterId
  *               - name
  *               - polygon
  *             properties:
- *               storeId:
+ *               headquarterId:
  *                 type: integer
- *                 description: ID de la tienda
+ *                 description: ID de la sede a la que pertenece la zona
  *               name:
  *                 type: string
  *                 description: Nombre de la zona de entrega
  *               polygon:
- *                 type: string
- *                 description: Polígono en formato WKT o GeoJSON (ej. POLYGON((-56.16 -33.87, -56.15 -33.87, -56.15 -33.88, -56.16 -33.87)))
+ *                 type: object
+ *                 description: Polígono en formato GeoJSON
  *               metadata:
  *                 type: object
  *                 description: Datos adicionales (opcional)
@@ -42,8 +44,10 @@ const router = express.Router();
  *         description: Zona de entrega creada exitosamente
  *       400:
  *         description: Validación fallida
+ *       401:
+ *         description: No autorizado
  *       404:
- *         description: Tienda no encontrada
+ *         description: Tienda o sede no encontrada
  */
 router.post('/', async (req, res) => {
   await DeliveryZoneController.create(req, res);
@@ -53,22 +57,17 @@ router.post('/', async (req, res) => {
  * @swagger
  * /delivery-zone:
  *   get:
- *     summary: Obtener todas las zonas de entrega de una tienda
- *     description: Retorna todas las zonas de entrega activas de una tienda específica.
+ *     summary: Obtener todas las zonas de entrega de la tienda
+ *     description: Retorna todas las zonas de entrega de la tienda autenticada.
  *     tags:
- *       - Delivery Zones
- *     parameters:
- *       - name: storeId
- *         in: query
- *         required: true
- *         description: ID de la tienda
- *         schema:
- *           type: integer
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Zonas de entrega encontradas
- *       400:
- *         description: storeId requerido
+ *       401:
+ *         description: No autorizado
  */
 router.get('/', async (req, res) => {
   await DeliveryZoneController.getByStore(req, res);
@@ -76,12 +75,59 @@ router.get('/', async (req, res) => {
 
 /**
  * @swagger
+ * /delivery-zone/check:
+ *   post:
+ *     summary: Validar una dirección contra zonas de entrega
+ *     description: Verifica si unas coordenadas pertenecen a una zona de entrega activa de la tienda autenticada. Si se envía `headquarterId`, limita la validación a esa sede.
+ *     tags:
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - latitude
+ *               - longitude
+ *             properties:
+ *               headquarterId:
+ *                 type: integer
+ *                 description: ID de la sede a validar. Opcional
+ *               latitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Latitud de la dirección
+ *               longitude:
+ *                 type: number
+ *                 format: float
+ *                 description: Longitud de la dirección
+ *     responses:
+ *       200:
+ *         description: Resultado de la validación
+ *       400:
+ *         description: Datos inválidos
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Sede no encontrada
+ */
+router.post('/check', async (req, res) => {
+  await DeliveryZoneController.checkAddress(req, res);
+});
+
+/**
+ * @swagger
  * /delivery-zone/{id}:
  *   get:
  *     summary: Obtener una zona de entrega por ID
- *     description: Retorna los detalles de una zona de entrega específica.
+ *     description: Retorna los detalles de una zona de entrega de la tienda autenticada.
  *     tags:
- *       - Delivery Zones
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -92,6 +138,8 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Zona encontrada
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Zona no encontrada
  */
@@ -106,7 +154,9 @@ router.get('/:id', async (req, res) => {
  *     summary: Actualizar una zona de entrega
  *     description: Actualiza los datos de una zona de entrega existente.
  *     tags:
- *       - Delivery Zones
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -121,10 +171,13 @@ router.get('/:id', async (req, res) => {
  *           schema:
  *             type: object
  *             properties:
+ *               headquarterId:
+ *                 type: integer
+ *                 description: Nueva sede asociada a la zona
  *               name:
  *                 type: string
  *               polygon:
- *                 type: string
+ *                 type: object
  *               metadata:
  *                 type: object
  *               zoneid:
@@ -132,6 +185,8 @@ router.get('/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: Zona actualizada exitosamente
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Zona no encontrada
  */
@@ -146,7 +201,9 @@ router.patch('/:id', async (req, res) => {
  *     summary: Cambiar estado de una zona de entrega
  *     description: Activa o desactiva una zona de entrega.
  *     tags:
- *       - Delivery Zones
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -169,6 +226,10 @@ router.patch('/:id', async (req, res) => {
  *     responses:
  *       200:
  *         description: Estado actualizado
+ *       400:
+ *         description: statusId es requerido
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Zona no encontrada
  */
@@ -183,7 +244,9 @@ router.patch('/:id/status', async (req, res) => {
  *     summary: Eliminar una zona de entrega
  *     description: Elimina una zona de entrega de manera permanente.
  *     tags:
- *       - Delivery Zones
+ *       - DeliveryZone
+ *     security:
+ *       - BearerAuth: []
  *     parameters:
  *       - name: id
  *         in: path
@@ -194,6 +257,8 @@ router.patch('/:id/status', async (req, res) => {
  *     responses:
  *       200:
  *         description: Zona eliminada exitosamente
+ *       401:
+ *         description: No autorizado
  *       404:
  *         description: Zona no encontrada
  */

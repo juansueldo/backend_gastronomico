@@ -1,9 +1,9 @@
-// Script para generar swagger.json a partir de tu configuración actual
-import swaggerSpec from '../src/config/swagger';
 import fs from 'node:fs';
+import path from 'node:path';
+import swaggerSpec from '../config/swagger.js';
 
-fs.writeFileSync(
-  __dirname + '/../public/swagger.json',
-  JSON.stringify(swaggerSpec, null, 2)
-);
+const outputPath = path.join(process.cwd(), 'public', 'swagger.json');
+
+fs.writeFileSync(outputPath, JSON.stringify(swaggerSpec, null, 2));
+console.log(`swagger.json generado en ${outputPath}`);
 

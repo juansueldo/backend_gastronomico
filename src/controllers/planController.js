@@ -96,6 +96,28 @@ class PlanController {
             res.status(400).json({ error: err.message });
         }
     }
+
+    static async updateStatus(req, res) {
+        try {
+            const { statusId } = req.body;
+            if (!statusId) return res.status(400).json({ error: 'statusId es requerido' });
+
+            const plan = await Plan.findByPk(req.params.id);
+            if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
+
+            await plan.update({ statusId });
+
+            const updated = await Plan.findByPk(req.params.id, {
+                include: [
+                    { model: Status, attributes: ['id', 'name'] },
+                    { model: BillingCycle, attributes: ['id', 'name', 'durationInDays'] },
+                ]
+            });
+            res.status(200).json(updated);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 export default PlanController;

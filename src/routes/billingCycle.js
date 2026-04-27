@@ -23,16 +23,12 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
- *               - slug
- *               - days
+ *               - durationInDays
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Mensual"
- *               slug:
- *                 type: string
- *                 example: "monthly"
- *               days:
+ *               durationInDays:
  *                 type: integer
  *                 example: 30
  *               description:
@@ -50,9 +46,7 @@ const router = express.Router();
  *                   type: integer
  *                 name:
  *                   type: string
- *                 slug:
- *                   type: string
- *                 days:
+ *                 durationInDays:
  *                   type: integer
  *       400:
  *         description: Error de validación
@@ -69,18 +63,14 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   slug:
- *                     type: string
- *                   days:
- *                     type: integer
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 rows:
+ *                   type: array
+ *                   items:
+ *                     type: object
  * /billing-cycle/{id}:
  *   get:
  *     summary: Obtener un ciclo por ID
@@ -118,9 +108,7 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
- *               slug:
- *                 type: string
- *               days:
+ *               durationInDays:
  *                 type: integer
  *               description:
  *                 type: string
@@ -170,12 +158,13 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               status:
- *                 type: string
- *                 enum: [active, inactive]
+ *               statusId:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Estado actualizado
+ *       400:
+ *         description: statusId es requerido
  *       401:
  *         description: No autorizado
  *       404:

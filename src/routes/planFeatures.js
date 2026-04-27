@@ -23,16 +23,17 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - planId
- *               - name
- *               - slug
+ *               - feature
+ *               - key
+ *               - value
  *             properties:
  *               planId:
  *                 type: integer
  *                 example: 1
- *               name:
+ *               feature:
  *                 type: string
  *                 example: "API Calls"
- *               slug:
+ *               key:
  *                 type: string
  *                 example: "api-calls"
  *               description:
@@ -53,9 +54,9 @@ const router = express.Router();
  *                   type: integer
  *                 planId:
  *                   type: integer
- *                 name:
+ *                 feature:
  *                   type: string
- *                 slug:
+ *                 key:
  *                   type: string
  *       400:
  *         description: Error de validación
@@ -79,16 +80,14 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   slug:
- *                     type: string
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 rows:
+ *                   type: array
+ *                   items:
+ *                     type: object
  * /plan-features/{id}:
  *   get:
  *     summary: Obtener una característica por ID
@@ -124,9 +123,9 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               name:
+ *               feature:
  *                 type: string
- *               slug:
+ *               key:
  *                 type: string
  *               description:
  *                 type: string
@@ -178,12 +177,13 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               status:
- *                 type: string
- *                 enum: [active, inactive]
+ *               statusId:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Estado actualizado
+ *       400:
+ *         description: statusId es requerido
  *       401:
  *         description: No autorizado
  *       404:

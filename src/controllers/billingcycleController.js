@@ -70,6 +70,25 @@ class BillingCycleController {
             res.status(400).json({ error: err.message });
         }
     }
+
+    static async updateStatus(req, res) {
+        try {
+            const { statusId } = req.body;
+            if (!statusId) return res.status(400).json({ error: 'statusId es requerido' });
+
+            const cycle = await BillingCycle.findByPk(req.params.id);
+            if (!cycle) return res.status(404).json({ error: 'Ciclo de facturación no encontrado' });
+
+            await cycle.update({ statusId });
+
+            const updated = await BillingCycle.findByPk(req.params.id, {
+                include: [{ model: Status, attributes: ['id', 'name'] }],
+            });
+            res.status(200).json(updated);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
 }
 
 export default BillingCycleController;

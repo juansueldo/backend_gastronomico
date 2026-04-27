@@ -3,32 +3,120 @@
   "info": {
     "title": "API Gastronómico",
     "version": "1.0.0",
-    "description": "Documentación de la API para el local gastronómico"
+    "description": "Documentación de la API Multi-Tenant para Restaurantes",
+    "contact": {
+      "name": "Soporte API",
+      "email": "api@gastronomico.com"
+    }
   },
   "servers": [
     {
-      "url": "https://backend-gastronomico.onrender.com"
+      "url": "http://localhost:3000/v1",
+      "description": "Servidor local"
+    },
+    {
+      "url": "https://backend-gastronomico.onrender.com/v1",
+      "description": "Servidor desplegado"
     }
   ],
   "components": {
     "securitySchemes": {
-      "bearerAuth": {
+      "BearerAuth": {
         "type": "http",
-        "scheme": "bearer"
-      },
-      "customHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-custom-header"
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT token obtenido del endpoint /auth/login"
       }
     }
   },
-  "security": [
+  "tags": [
     {
-      "bearerAuth": []
+      "name": "Auth",
+      "description": "Autenticación y registro"
     },
     {
-      "customHeader": []
+      "name": "Order",
+      "description": "Gestión de órdenes"
+    },
+    {
+      "name": "Customer",
+      "description": "Gestión de clientes"
+    },
+    {
+      "name": "Contact",
+      "description": "Contactos de clientes"
+    },
+    {
+      "name": "DeliveryZone",
+      "description": "Zonas de entrega"
+    },
+    {
+      "name": "Instance",
+      "description": "Instancias de canales de comunicación"
+    },
+    {
+      "name": "Network",
+      "description": "Redes de comunicación"
+    },
+    {
+      "name": "Product",
+      "description": "Productos del catálogo"
+    },
+    {
+      "name": "Category",
+      "description": "Gestión de categorías"
+    },
+    {
+      "name": "Role",
+      "description": "Roles de usuario"
+    },
+    {
+      "name": "Status",
+      "description": "Estados del sistema"
+    },
+    {
+      "name": "Plan",
+      "description": "Planes de suscripción"
+    },
+    {
+      "name": "PlanPrice",
+      "description": "Precios de planes (multi-moneda)"
+    },
+    {
+      "name": "PlanFeatures",
+      "description": "Características de planes"
+    },
+    {
+      "name": "BillingCycle",
+      "description": "Ciclos de facturación"
+    },
+    {
+      "name": "Subscription",
+      "description": "Suscripciones de tiendas"
+    },
+    {
+      "name": "Table",
+      "description": "Gestión de mesas del restaurante"
+    },
+    {
+      "name": "Waiter",
+      "description": "Gestión de mozos/camareros"
+    },
+    {
+      "name": "User",
+      "description": "Gestión de usuarios internos"
+    },
+    {
+      "name": "Headquarter",
+      "description": "Gestión de sedes de la tienda"
+    },
+    {
+      "name": "CashRegister",
+      "description": "Gestión de caja por sede"
+    },
+    {
+      "name": "WebSocket",
+      "description": "Documentación de integración websocket"
     }
   ],
   "paths": {
@@ -53,49 +141,49 @@
                   "email",
                   "password",
                   "slug"
-                ]
+                ],
+                "properties": {
+                  "storename": {
+                    "type": "string",
+                    "example": "Mi Restaurante"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "example": "mi-restaurante"
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "example": "UTC-3"
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "Montevideo"
+                  },
+                  "firstname": {
+                    "type": "string",
+                    "example": "Juan"
+                  },
+                  "lastname": {
+                    "type": "string",
+                    "example": "Pérez"
+                  },
+                  "username": {
+                    "type": "string",
+                    "example": "juanperez"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "juan@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "securepassword123"
+                  }
+                }
               }
             }
-          }
-        },
-        "properties": {
-          "storename": {
-            "type": "string",
-            "example": "Mi Restaurante"
-          },
-          "slug": {
-            "type": "string",
-            "example": "mi-restaurante"
-          },
-          "timezone": {
-            "type": "string",
-            "example": "UTC-3"
-          },
-          "location": {
-            "type": "string",
-            "example": "Montevideo"
-          },
-          "firstname": {
-            "type": "string",
-            "example": "Juan"
-          },
-          "lastname": {
-            "type": "string",
-            "example": "Pérez"
-          },
-          "username": {
-            "type": "string",
-            "example": "juanperez"
-          },
-          "email": {
-            "type": "string",
-            "format": "email",
-            "example": "juan@example.com"
-          },
-          "password": {
-            "type": "string",
-            "format": "password",
-            "example": "securepassword123"
           }
         },
         "responses": {
@@ -254,19 +342,14 @@
                 "type": "object",
                 "required": [
                   "name",
-                  "slug",
-                  "days"
+                  "durationInDays"
                 ],
                 "properties": {
                   "name": {
                     "type": "string",
                     "example": "Mensual"
                   },
-                  "slug": {
-                    "type": "string",
-                    "example": "monthly"
-                  },
-                  "days": {
+                  "durationInDays": {
                     "type": "integer",
                     "example": 30
                   },
@@ -293,10 +376,7 @@
                     "name": {
                       "type": "string"
                     },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "days": {
+                    "durationInDays": {
                       "type": "integer"
                     }
                   }
@@ -324,21 +404,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "slug": {
-                        "type": "string"
-                      },
-                      "days": {
-                        "type": "integer"
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
                       }
                     }
                   }
@@ -404,10 +478,7 @@
                   "name": {
                     "type": "string"
                   },
-                  "slug": {
-                    "type": "string"
-                  },
-                  "days": {
+                  "durationInDays": {
                     "type": "integer"
                   },
                   "description": {
@@ -491,12 +562,8 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "active",
-                      "inactive"
-                    ]
+                  "statusId": {
+                    "type": "integer"
                   }
                 }
               }
@@ -507,6 +574,9 @@
           "200": {
             "description": "Estado actualizado"
           },
+          "400": {
+            "description": "statusId es requerido"
+          },
           "401": {
             "description": "No autorizado"
           },
@@ -516,12 +586,174 @@
         }
       }
     },
+    "/category": {
+      "post": {
+        "summary": "Crear una categoría",
+        "description": "Crea una categoría para la tienda autenticada.",
+        "tags": [
+          "Category"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Bebidas"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Productos fríos y calientes"
+                  },
+                  "icon": {
+                    "type": "string",
+                    "example": "glass-water"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Categoría creada exitosamente"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener categorías activas",
+        "description": "Lista las categorías activas de la tienda autenticada.",
+        "tags": [
+          "Category"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de categorías"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/category/{id}": {
+      "get": {
+        "summary": "Obtener una categoría por ID",
+        "tags": [
+          "Category"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categoría encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Categoría no encontrada"
+          }
+        }
+      },
+      "put": {
+        "summary": "Actualizar una categoría",
+        "tags": [
+          "Category"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "icon": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Categoría actualizada"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Categoría no encontrada"
+          }
+        }
+      }
+    },
     "/contact": {
       "post": {
         "summary": "Crear un nuevo contacto",
         "description": "Crea un contacto que vincula un cliente con una instancia (canal de comunicación).",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "requestBody": {
           "required": true,
@@ -587,7 +819,7 @@
         "summary": "Obtener todos los contactos de un cliente",
         "description": "Retorna todos los canales de comunicación (contactos) asociados a un cliente.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -615,7 +847,7 @@
         "summary": "Obtener todos los contactos de una instancia",
         "description": "Retorna todos los clientes que están en comunicación a través de una instancia específica.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -643,7 +875,7 @@
         "summary": "Obtener un contacto específico",
         "description": "Retorna los detalles de un contacto.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -669,7 +901,7 @@
         "summary": "Actualizar un contacto",
         "description": "Actualiza los datos de un contacto existente.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -720,7 +952,7 @@
         "summary": "Eliminar un contacto",
         "description": "Elimina el contacto entre un cliente y una instancia.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -748,7 +980,7 @@
         "summary": "Cambiar estado de un contacto",
         "description": "Activa o desactiva un contacto.",
         "tags": [
-          "Contacts"
+          "Contact"
         ],
         "parameters": [
           {
@@ -1069,9 +1301,14 @@
     "/delivery-zone": {
       "post": {
         "summary": "Crear una nueva zona de entrega",
-        "description": "Crea una zona de entrega para una tienda con un polígono geométrico.",
+        "description": "Crea una zona de entrega para la tienda autenticada y la asocia a una sede.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
@@ -1080,22 +1317,22 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "storeId",
+                  "headquarterId",
                   "name",
                   "polygon"
                 ],
                 "properties": {
-                  "storeId": {
+                  "headquarterId": {
                     "type": "integer",
-                    "description": "ID de la tienda"
+                    "description": "ID de la sede a la que pertenece la zona"
                   },
                   "name": {
                     "type": "string",
                     "description": "Nombre de la zona de entrega"
                   },
                   "polygon": {
-                    "type": "string",
-                    "description": "Polígono en formato WKT o GeoJSON (ej. POLYGON((-56.16 -33.87, -56.15 -33.87, -56.15 -33.88, -56.16 -33.87)))"
+                    "type": "object",
+                    "description": "Polígono en formato GeoJSON"
                   },
                   "metadata": {
                     "type": "object",
@@ -1117,34 +1354,89 @@
           "400": {
             "description": "Validación fallida"
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
-            "description": "Tienda no encontrada"
+            "description": "Tienda o sede no encontrada"
           }
         }
       },
       "get": {
-        "summary": "Obtener todas las zonas de entrega de una tienda",
-        "description": "Retorna todas las zonas de entrega activas de una tienda específica.",
+        "summary": "Obtener todas las zonas de entrega de la tienda",
+        "description": "Retorna todas las zonas de entrega de la tienda autenticada.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
         ],
-        "parameters": [
+        "security": [
           {
-            "name": "storeId",
-            "in": "query",
-            "required": true,
-            "description": "ID de la tienda",
-            "schema": {
-              "type": "integer"
-            }
+            "BearerAuth": []
           }
         ],
         "responses": {
           "200": {
             "description": "Zonas de entrega encontradas"
           },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/delivery-zone/check": {
+      "post": {
+        "summary": "Validar una dirección contra zonas de entrega",
+        "description": "Verifica si unas coordenadas pertenecen a una zona de entrega activa de la tienda autenticada. Si se envía `headquarterId`, limita la validación a esa sede.",
+        "tags": [
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "latitude",
+                  "longitude"
+                ],
+                "properties": {
+                  "headquarterId": {
+                    "type": "integer",
+                    "description": "ID de la sede a validar. Opcional"
+                  },
+                  "latitude": {
+                    "type": "number",
+                    "format": "float",
+                    "description": "Latitud de la dirección"
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "format": "float",
+                    "description": "Longitud de la dirección"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resultado de la validación"
+          },
           "400": {
-            "description": "storeId requerido"
+            "description": "Datos inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Sede no encontrada"
           }
         }
       }
@@ -1152,9 +1444,14 @@
     "/delivery-zone/{id}": {
       "get": {
         "summary": "Obtener una zona de entrega por ID",
-        "description": "Retorna los detalles de una zona de entrega específica.",
+        "description": "Retorna los detalles de una zona de entrega de la tienda autenticada.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -1171,6 +1468,9 @@
           "200": {
             "description": "Zona encontrada"
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Zona no encontrada"
           }
@@ -1180,7 +1480,12 @@
         "summary": "Actualizar una zona de entrega",
         "description": "Actualiza los datos de una zona de entrega existente.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -1200,11 +1505,15 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "headquarterId": {
+                    "type": "integer",
+                    "description": "Nueva sede asociada a la zona"
+                  },
                   "name": {
                     "type": "string"
                   },
                   "polygon": {
-                    "type": "string"
+                    "type": "object"
                   },
                   "metadata": {
                     "type": "object"
@@ -1221,6 +1530,9 @@
           "200": {
             "description": "Zona actualizada exitosamente"
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Zona no encontrada"
           }
@@ -1230,7 +1542,12 @@
         "summary": "Eliminar una zona de entrega",
         "description": "Elimina una zona de entrega de manera permanente.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -1247,6 +1564,9 @@
           "200": {
             "description": "Zona eliminada exitosamente"
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Zona no encontrada"
           }
@@ -1258,7 +1578,12 @@
         "summary": "Cambiar estado de una zona de entrega",
         "description": "Activa o desactiva una zona de entrega.",
         "tags": [
-          "Delivery Zones"
+          "DeliveryZone"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -1294,8 +1619,284 @@
           "200": {
             "description": "Estado actualizado"
           },
+          "400": {
+            "description": "statusId es requerido"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Zona no encontrada"
+          }
+        }
+      }
+    },
+    "/headquarter": {
+      "post": {
+        "summary": "Crear una nueva sede",
+        "description": "Crea una sede para la tienda autenticada.",
+        "tags": [
+          "Headquarter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Sucursal Centro"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "example": "+54 11 5555 1234"
+                  },
+                  "location": {
+                    "type": "string",
+                    "example": "Av. Corrientes 1234"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Sede creada exitosamente"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener sedes de la tienda",
+        "description": "Lista todas las sedes asociadas a la tienda autenticada.",
+        "tags": [
+          "Headquarter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de sedes"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/headquarter/{id}": {
+      "get": {
+        "summary": "Obtener una sede por ID",
+        "tags": [
+          "Headquarter"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sede encontrada"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Sede no encontrada"
+          }
+        }
+      }
+    },
+    "/headquarter/{id}/cash-register": {
+      "get": {
+        "summary": "Obtener resumen de caja por sede",
+        "description": "Retorna el balance actual y los movimientos registrados para la sede indicada. Se pueden filtrar movimientos por fecha y tipo.",
+        "tags": [
+          "CashRegister"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Fecha desde la cual incluir movimientos"
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "description": "Fecha hasta la cual incluir movimientos"
+          },
+          {
+            "in": "query",
+            "name": "type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "opening",
+                "income",
+                "expense",
+                "adjustment",
+                "closing"
+              ]
+            },
+            "description": "Filtrar por tipo de movimiento"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "example": 50
+            },
+            "description": "Máximo de movimientos a devolver"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Resumen de caja generado correctamente"
+          },
+          "400": {
+            "description": "Parámetros inválidos"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Sede no encontrada"
+          }
+        }
+      },
+      "post": {
+        "summary": "Registrar un movimiento de caja",
+        "description": "Permite registrar aperturas, ingresos, egresos, ajustes o cierres para una sede específica.",
+        "tags": [
+          "CashRegister"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "type",
+                  "amount",
+                  "description"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "opening",
+                      "income",
+                      "expense",
+                      "adjustment",
+                      "closing"
+                    ],
+                    "example": "income"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 12500.5,
+                    "description": "Para adjustment se permiten valores positivos o negativos. Para el resto debe ser positivo."
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Cobro en efectivo del turno mañana"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "example": "TICKET-000123"
+                  },
+                  "movementDate": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "metadata": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Movimiento registrado exitosamente"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Sede no encontrada"
           }
         }
       }
@@ -1570,33 +2171,12 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "name",
-                  "slug",
-                  "type"
+                  "name"
                 ],
                 "properties": {
                   "name": {
                     "type": "string",
                     "example": "WhatsApp"
-                  },
-                  "slug": {
-                    "type": "string",
-                    "example": "whatsapp"
-                  },
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "whatsapp",
-                      "email",
-                      "telegram",
-                      "sms",
-                      "social"
-                    ],
-                    "example": "whatsapp"
-                  },
-                  "icon": {
-                    "type": "string",
-                    "example": "whatsapp-icon"
                   }
                 }
               }
@@ -1615,12 +2195,6 @@
                       "type": "integer"
                     },
                     "name": {
-                      "type": "string"
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "type": {
                       "type": "string"
                     }
                   }
@@ -1648,21 +2222,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "slug": {
-                        "type": "string"
-                      },
-                      "type": {
-                        "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
                       }
                     }
                   }
@@ -1727,15 +2295,6 @@
                 "properties": {
                   "name": {
                     "type": "string"
-                  },
-                  "slug": {
-                    "type": "string"
-                  },
-                  "type": {
-                    "type": "string"
-                  },
-                  "icon": {
-                    "type": "string"
                   }
                 }
               }
@@ -1790,9 +2349,14 @@
     "/order": {
       "post": {
         "summary": "Crear una nueva orden",
-        "description": "Crea una orden con múltiples items. Para órdenes de delivery, se valida que las coordenadas estén dentro de una zona de entrega registrada. Para órdenes dine-in, se puede asociar una mesa y un mozo.",
+        "description": "Crea una orden para la tienda autenticada. Todas las órdenes deben asociarse a una sede y, si son delivery, la dirección debe pertenecer a una zona activa de esa sede.",
         "tags": [
-          "Orders"
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "requestBody": {
           "required": true,
@@ -1801,15 +2365,15 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "storeId",
+                  "headquarterId",
                   "userId",
                   "items",
                   "type"
                 ],
                 "properties": {
-                  "storeId": {
+                  "headquarterId": {
                     "type": "integer",
-                    "description": "ID de la tienda"
+                    "description": "ID de la sede que gestionará la orden"
                   },
                   "userId": {
                     "type": "integer",
@@ -1851,7 +2415,7 @@
                   },
                   "tableId": {
                     "type": "integer",
-                    "description": "ID de la mesa (solo para órdenes dine-in, opcional)"
+                    "description": "ID de la mesa. Solo se permite para órdenes dine-in"
                   },
                   "waiterId": {
                     "type": "integer",
@@ -1859,22 +2423,22 @@
                   },
                   "delivery_address": {
                     "type": "string",
-                    "description": "Dirección de entrega (requerida si type es delivery)"
+                    "description": "Dirección de entrega. Requerida si type es delivery"
                   },
                   "delivery_latitude": {
                     "type": "number",
                     "format": "float",
-                    "description": "Latitud de la dirección de entrega (requerida si type es delivery)"
+                    "description": "Latitud de entrega. Requerida si type es delivery"
                   },
                   "delivery_longitude": {
                     "type": "number",
                     "format": "float",
-                    "description": "Longitud de la dirección de entrega (requerida si type es delivery)"
+                    "description": "Longitud de entrega. Requerida si type es delivery"
                   },
                   "delivery_date": {
                     "type": "string",
                     "format": "date-time",
-                    "description": "Fecha de entrega (requerida si type es delivery)"
+                    "description": "Fecha estimada de entrega"
                   }
                 }
               }
@@ -1921,6 +2485,9 @@
                     "delivery_longitude": {
                       "type": "number"
                     },
+                    "headquarterId": {
+                      "type": "integer"
+                    },
                     "storeId": {
                       "type": "integer"
                     },
@@ -1939,26 +2506,26 @@
           "400": {
             "description": "Validación fallida o coordenadas fuera de zona de entrega"
           },
+          "401": {
+            "description": "No autorizado"
+          },
+          "403": {
+            "description": "Alguna relación no pertenece a la tienda autenticada"
+          },
           "404": {
-            "description": "Tienda, producto, mesa o mozo no encontrado"
+            "description": "Usuario, cliente, sede, tienda, producto, mesa o mozo no encontrado"
           }
         }
       },
       "get": {
         "summary": "Obtener todas las órdenes de una tienda",
-        "description": "Retorna todas las órdenes de una tienda específica con paginación implícita.",
+        "description": "Retorna todas las órdenes de la tienda autenticada ordenadas por fecha.",
         "tags": [
-          "Orders"
+          "Order"
         ],
-        "parameters": [
+        "security": [
           {
-            "name": "storeId",
-            "in": "query",
-            "required": true,
-            "description": "ID de la tienda",
-            "schema": {
-              "type": "integer"
-            }
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -1984,7 +2551,10 @@
             }
           },
           "400": {
-            "description": "storeId requerido"
+            "description": "Error al obtener las órdenes"
+          },
+          "401": {
+            "description": "No autorizado"
           }
         }
       }
@@ -1992,9 +2562,14 @@
     "/order/{id}": {
       "get": {
         "summary": "Obtener una orden por ID",
-        "description": "Retorna los detalles completos de una orden incluyendo sus items y productos asociados.",
+        "description": "Retorna los detalles completos de una orden perteneciente a la tienda autenticada.",
         "tags": [
-          "Orders"
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -2055,6 +2630,9 @@
               }
             }
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Orden no encontrada"
           }
@@ -2062,9 +2640,14 @@
       },
       "delete": {
         "summary": "Eliminar una orden",
-        "description": "Elimina una orden y todos sus items asociados.",
+        "description": "Elimina una orden de la tienda autenticada y todos sus items asociados.",
         "tags": [
-          "Orders"
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -2081,6 +2664,9 @@
           "200": {
             "description": "Orden eliminada exitosamente"
           },
+          "401": {
+            "description": "No autorizado"
+          },
           "404": {
             "description": "Orden no encontrada"
           }
@@ -2090,9 +2676,14 @@
     "/order/{id}/status": {
       "patch": {
         "summary": "Actualizar estado de una orden",
-        "description": "Cambia el estado de una orden (pending, processing, completed, cancelled).",
+        "description": "Cambia el estado de una orden respetando el flujo pending -> processing -> ready -> completed. También permite cancelar desde pending, processing o ready.",
         "tags": [
-          "Orders"
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
         ],
         "parameters": [
           {
@@ -2120,6 +2711,7 @@
                     "enum": [
                       "pending",
                       "processing",
+                      "ready",
                       "completed",
                       "cancelled"
                     ],
@@ -2135,7 +2727,127 @@
             "description": "Estado actualizado exitosamente"
           },
           "400": {
-            "description": "Estado inválido"
+            "description": "Estado inválido o transición no permitida"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      }
+    },
+    "/order/{id}/production": {
+      "patch": {
+        "summary": "Enviar una orden a producción",
+        "description": "Cambia el estado de la orden de pending a processing.",
+        "tags": [
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden enviada a producción"
+          },
+          "400": {
+            "description": "La transición no está permitida"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      }
+    },
+    "/order/{id}/ready": {
+      "patch": {
+        "summary": "Marcar una orden como lista",
+        "description": "Cambia el estado de la orden de processing a ready.",
+        "tags": [
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden marcada como lista"
+          },
+          "400": {
+            "description": "La transición no está permitida"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Orden no encontrada"
+          }
+        }
+      }
+    },
+    "/order/{id}/finalize": {
+      "patch": {
+        "summary": "Finalizar una orden",
+        "description": "Cambia el estado de la orden de ready a completed.",
+        "tags": [
+          "Order"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "ID de la orden",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orden finalizada"
+          },
+          "400": {
+            "description": "La transición no está permitida"
+          },
+          "401": {
+            "description": "No autorizado"
           },
           "404": {
             "description": "Orden no encontrada"
@@ -2163,34 +2875,24 @@
                 "type": "object",
                 "required": [
                   "name",
-                  "slug",
-                  "price"
+                  "billingCycleId"
                 ],
                 "properties": {
                   "name": {
                     "type": "string",
                     "example": "Plan Pro"
                   },
-                  "slug": {
-                    "type": "string",
-                    "example": "plan-pro"
-                  },
                   "description": {
                     "type": "string",
                     "example": "Plan profesional con todas las características"
                   },
-                  "price": {
-                    "type": "number",
-                    "format": "float",
-                    "example": 99.99
+                  "isFree": {
+                    "type": "boolean",
+                    "example": false
                   },
-                  "billingCycle": {
-                    "type": "string",
-                    "enum": [
-                      "monthly",
-                      "yearly"
-                    ],
-                    "example": "monthly"
+                  "billingCycleId": {
+                    "type": "integer",
+                    "example": 1
                   }
                 }
               }
@@ -2211,11 +2913,11 @@
                     "name": {
                       "type": "string"
                     },
-                    "slug": {
-                      "type": "string"
+                    "isFree": {
+                      "type": "boolean"
                     },
-                    "price": {
-                      "type": "number"
+                    "billingCycleId": {
+                      "type": "integer"
                     }
                   }
                 }
@@ -2242,21 +2944,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "slug": {
-                        "type": "string"
-                      },
-                      "price": {
-                        "type": "number"
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
                       }
                     }
                   }
@@ -2322,17 +3018,14 @@
                   "name": {
                     "type": "string"
                   },
-                  "slug": {
-                    "type": "string"
-                  },
                   "description": {
                     "type": "string"
                   },
-                  "price": {
-                    "type": "number"
+                  "isFree": {
+                    "type": "boolean"
                   },
-                  "billingCycle": {
-                    "type": "string"
+                  "billingCycleId": {
+                    "type": "integer"
                   }
                 }
               }
@@ -2412,12 +3105,8 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "active",
-                      "inactive"
-                    ]
+                  "statusId": {
+                    "type": "integer"
                   }
                 }
               }
@@ -2427,6 +3116,9 @@
         "responses": {
           "200": {
             "description": "Estado actualizado"
+          },
+          "400": {
+            "description": "statusId es requerido"
           },
           "401": {
             "description": "No autorizado"
@@ -2457,19 +3149,20 @@
                 "type": "object",
                 "required": [
                   "planId",
-                  "name",
-                  "slug"
+                  "feature",
+                  "key",
+                  "value"
                 ],
                 "properties": {
                   "planId": {
                     "type": "integer",
                     "example": 1
                   },
-                  "name": {
+                  "feature": {
                     "type": "string",
                     "example": "API Calls"
                   },
-                  "slug": {
+                  "key": {
                     "type": "string",
                     "example": "api-calls"
                   },
@@ -2500,10 +3193,10 @@
                     "planId": {
                       "type": "integer"
                     },
-                    "name": {
+                    "feature": {
                       "type": "string"
                     },
-                    "slug": {
+                    "key": {
                       "type": "string"
                     }
                   }
@@ -2543,18 +3236,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "slug": {
-                        "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
                       }
                     }
                   }
@@ -2617,10 +3307,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "name": {
+                  "feature": {
                     "type": "string"
                   },
-                  "slug": {
+                  "key": {
                     "type": "string"
                   },
                   "description": {
@@ -2707,12 +3397,8 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "active",
-                      "inactive"
-                    ]
+                  "statusId": {
+                    "type": "integer"
                   }
                 }
               }
@@ -2722,6 +3408,9 @@
         "responses": {
           "200": {
             "description": "Estado actualizado"
+          },
+          "400": {
+            "description": "statusId es requerido"
           },
           "401": {
             "description": "No autorizado"
@@ -3459,21 +4148,12 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "name",
-                  "slug"
+                  "name"
                 ],
                 "properties": {
                   "name": {
                     "type": "string",
                     "example": "Gerente"
-                  },
-                  "slug": {
-                    "type": "string",
-                    "example": "gerente"
-                  },
-                  "description": {
-                    "type": "string",
-                    "example": "Rol de gerente de tienda"
                   }
                 }
               }
@@ -3493,12 +4173,6 @@
                     },
                     "name": {
                       "type": "string"
-                    },
-                    "slug": {
-                      "type": "string"
-                    },
-                    "storeId": {
-                      "type": "integer"
                     }
                   }
                 }
@@ -3515,24 +4189,9 @@
       },
       "get": {
         "summary": "Obtener todos los roles",
-        "description": "Lista todos los roles de la tienda del usuario autenticado",
+        "description": "Lista todos los roles disponibles.",
         "tags": [
           "Role"
-        ],
-        "security": [
-          {
-            "BearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "storeId",
-            "schema": {
-              "type": "integer"
-            },
-            "description": "ID de la tienda (se obtiene automáticamente del token)"
-          }
         ],
         "responses": {
           "200": {
@@ -3540,27 +4199,21 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "properties": {
-                      "id": {
-                        "type": "integer"
-                      },
-                      "name": {
-                        "type": "string"
-                      },
-                      "slug": {
-                        "type": "string"
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer"
+                    },
+                    "rows": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
                       }
                     }
                   }
                 }
               }
             }
-          },
-          "401": {
-            "description": "No autorizado"
           }
         }
       }
@@ -3594,9 +4247,6 @@
                       "type": "integer"
                     },
                     "name": {
-                      "type": "string"
-                    },
-                    "slug": {
                       "type": "string"
                     }
                   }
@@ -3637,12 +4287,6 @@
                 "type": "object",
                 "properties": {
                   "name": {
-                    "type": "string"
-                  },
-                  "slug": {
-                    "type": "string"
-                  },
-                  "description": {
                     "type": "string"
                   }
                 }
@@ -4518,6 +5162,198 @@
         }
       }
     },
+    "/user": {
+      "post": {
+        "summary": "Crear usuario interno",
+        "description": "Crea un usuario para la tienda autenticada.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "firstname",
+                  "lastname",
+                  "username",
+                  "email",
+                  "password",
+                  "roleId"
+                ],
+                "properties": {
+                  "firstname": {
+                    "type": "string",
+                    "example": "Ana"
+                  },
+                  "lastname": {
+                    "type": "string",
+                    "example": "Gomez"
+                  },
+                  "username": {
+                    "type": "string",
+                    "example": "agomez"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ana@resto.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "claveSegura123"
+                  },
+                  "roleId": {
+                    "type": "integer",
+                    "example": 2
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Usuario creado exitosamente"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      },
+      "get": {
+        "summary": "Obtener usuarios de la tienda",
+        "description": "Lista los usuarios pertenecientes a la tienda autenticada.",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Lista de usuarios"
+          },
+          "401": {
+            "description": "No autorizado"
+          }
+        }
+      }
+    },
+    "/user/{id}": {
+      "get": {
+        "summary": "Obtener un usuario por ID",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuario encontrado"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Usuario no encontrado"
+          }
+        }
+      },
+      "put": {
+        "summary": "Actualizar un usuario",
+        "tags": [
+          "User"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "firstname": {
+                    "type": "string"
+                  },
+                  "lastname": {
+                    "type": "string"
+                  },
+                  "username": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "roleId": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Usuario actualizado"
+          },
+          "400": {
+            "description": "Error de validación"
+          },
+          "401": {
+            "description": "No autorizado"
+          },
+          "404": {
+            "description": "Usuario no encontrado"
+          }
+        }
+      }
+    },
     "/waiter": {
       "post": {
         "summary": "Crear un nuevo mozo",
@@ -4856,6 +5692,5 @@
         }
       }
     }
-  },
-  "tags": []
+  }
 }

@@ -10,7 +10,7 @@ const router = express.Router();
  *     summary: Crear un nuevo contacto
  *     description: Crea un contacto que vincula un cliente con una instancia (canal de comunicación).
  *     tags:
- *       - Contacts
+ *       - Contact
  *     requestBody:
  *       required: true
  *       content:
@@ -59,7 +59,7 @@ router.post('/', async (req, res) => {
  *     summary: Obtener todos los contactos de un cliente
  *     description: Retorna todos los canales de comunicación (contactos) asociados a un cliente.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: customerId
  *         in: path
@@ -84,7 +84,7 @@ router.get('/customer/:customerId', async (req, res) => {
  *     summary: Obtener todos los contactos de una instancia
  *     description: Retorna todos los clientes que están en comunicación a través de una instancia específica.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: instanceId
  *         in: path
@@ -109,7 +109,7 @@ router.get('/instance/:instanceId', async (req, res) => {
  *     summary: Obtener un contacto específico
  *     description: Retorna los detalles de un contacto.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: id
  *         in: path
@@ -134,7 +134,7 @@ router.get('/:id', async (req, res) => {
  *     summary: Actualizar un contacto
  *     description: Actualiza los datos de un contacto existente.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: id
  *         in: path
@@ -171,7 +171,7 @@ router.patch('/:id', async (req, res) => {
  *     summary: Cambiar estado de un contacto
  *     description: Activa o desactiva un contacto.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: id
  *         in: path
@@ -208,7 +208,7 @@ router.patch('/:id/status', async (req, res) => {
  *     summary: Eliminar un contacto
  *     description: Elimina el contacto entre un cliente y una instancia.
  *     tags:
- *       - Contacts
+ *       - Contact
  *     parameters:
  *       - name: id
  *         in: path

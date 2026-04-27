@@ -23,26 +23,20 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
- *               - slug
- *               - price
+ *               - billingCycleId
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Plan Pro"
- *               slug:
- *                 type: string
- *                 example: "plan-pro"
  *               description:
  *                 type: string
  *                 example: "Plan profesional con todas las características"
- *               price:
- *                 type: number
- *                 format: float
- *                 example: 99.99
- *               billingCycle:
- *                 type: string
- *                 enum: [monthly, yearly]
- *                 example: "monthly"
+ *               isFree:
+ *                 type: boolean
+ *                 example: false
+ *               billingCycleId:
+ *                 type: integer
+ *                 example: 1
  *     responses:
  *       201:
  *         description: Plan creado exitosamente
@@ -55,10 +49,10 @@ const router = express.Router();
  *                   type: integer
  *                 name:
  *                   type: string
- *                 slug:
- *                   type: string
- *                 price:
- *                   type: number
+ *                 isFree:
+ *                   type: boolean
+ *                 billingCycleId:
+ *                   type: integer
  *       400:
  *         description: Error de validación
  *       401:
@@ -74,18 +68,14 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   slug:
- *                     type: string
- *                   price:
- *                     type: number
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 rows:
+ *                   type: array
+ *                   items:
+ *                     type: object
  * /plan/{id}:
  *   get:
  *     summary: Obtener un plan por ID
@@ -123,14 +113,12 @@ const router = express.Router();
  *             properties:
  *               name:
  *                 type: string
- *               slug:
- *                 type: string
  *               description:
  *                 type: string
- *               price:
- *                 type: number
- *               billingCycle:
- *                 type: string
+ *               isFree:
+ *                 type: boolean
+ *               billingCycleId:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Plan actualizado
@@ -177,12 +165,13 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             properties:
- *               status:
- *                 type: string
- *                 enum: [active, inactive]
+ *               statusId:
+ *                 type: integer
  *     responses:
  *       200:
  *         description: Estado actualizado
+ *       400:
+ *         description: statusId es requerido
  *       401:
  *         description: No autorizado
  *       404:

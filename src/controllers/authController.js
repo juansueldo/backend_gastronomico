@@ -15,7 +15,7 @@ class AuthController {
         if(await User.findOne({ where:  { username } })) throw new Error('Username already exists');
         const hashedPassword = await bcrypt.hash(password, 10);
         if (!store) throw new Error('Error creating store');
-        const headquarter = await Headquarter.create({name:'central', phone: '', location});
+        const headquarter = await Headquarter.create({ name: 'central', phone: '', location, storeId: store.id, statusId: 1 });
         if(!headquarter) throw new Error('Error create headquarter')
         const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId: store.id, headquarterId: headquarter.id,statusId: 1, roleId: 1 });
         if (!user) throw new Error('Error creating user');

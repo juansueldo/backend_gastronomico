@@ -23,22 +23,10 @@ const router = express.Router();
  *             type: object
  *             required:
  *               - name
- *               - slug
- *               - type
  *             properties:
  *               name:
  *                 type: string
  *                 example: "WhatsApp"
- *               slug:
- *                 type: string
- *                 example: "whatsapp"
- *               type:
- *                 type: string
- *                 enum: [whatsapp, email, telegram, sms, social]
- *                 example: "whatsapp"
- *               icon:
- *                 type: string
- *                 example: "whatsapp-icon"
  *     responses:
  *       201:
  *         description: Red creada exitosamente
@@ -50,10 +38,6 @@ const router = express.Router();
  *                 id:
  *                   type: integer
  *                 name:
- *                   type: string
- *                 slug:
- *                   type: string
- *                 type:
  *                   type: string
  *       400:
  *         description: Error de validación
@@ -70,18 +54,14 @@ const router = express.Router();
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: integer
- *                   name:
- *                     type: string
- *                   slug:
- *                     type: string
- *                   type:
- *                     type: string
+ *               type: object
+ *               properties:
+ *                 count:
+ *                   type: integer
+ *                 rows:
+ *                   type: array
+ *                   items:
+ *                     type: object
  * /network/{id}:
  *   get:
  *     summary: Obtener una red por ID
@@ -118,12 +98,6 @@ const router = express.Router();
  *             type: object
  *             properties:
  *               name:
- *                 type: string
- *               slug:
- *                 type: string
- *               type:
- *                 type: string
- *               icon:
  *                 type: string
  *     responses:
  *       200:
