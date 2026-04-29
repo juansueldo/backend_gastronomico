@@ -55,6 +55,7 @@ export {
   Waiter,
   Headquarter,
   CashRegisterMovement,
+  sequelize
 };
 
 // Definir relaciones para evitar dependencias circulares
