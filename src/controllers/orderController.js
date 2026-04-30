@@ -245,12 +245,12 @@ class OrderController {
       if (!product) return res.status(404).json({ error: `Producto ${item.productId} no encontrado` });
       if (product.storeId !== storeId) return res.status(403).json({ error: `Producto ${item.productId} no pertenece a esta tienda` });
 
-      totalAmount += product.price * item.quantity;
+      totalAmount += parseFloat(product.price) * item.quantity;
       itemsData.push({
         headquarterId: normalizedHeadquarterId,
         productId: item.productId,
         quantity: item.quantity,
-        price: product.price,
+        price: parseFloat(product.price),
         storeId,
       });
     }
@@ -271,7 +271,7 @@ class OrderController {
         statusId: 1,
         storeId,
         tableId: tableId ?? null,
-        total_amount: totalAmount,
+        total_amount: parseFloat(totalAmount.toFixed(2)),
         type,
         userId,
         waiterId: waiterId ?? null,
@@ -353,36 +353,48 @@ class OrderController {
    * @param {Object} res - Response object
    */
   static async updateStatus(req, res) {
-    try {
-      const storeId = req.user?.storeId;
-      const { id } = req.params;
-      const { status } = req.body;
+  try {
+    const storeId = req.user?.storeId;
+    const { id } = req.params;
+    const { status } = req.body;
 
-      if (!storeId) {
-        return res.status(401).json({ error: 'storeId no encontrado en el token' });
-      }
-
-      if (!status || !ORDER_STATUSES.includes(status)) {
-        return res.status(400).json({ error: `status debe ser: ${ORDER_STATUSES.join(', ')}` });
-      }
-
-      const order = await getOrderForStore(id, storeId);
-      if (!order) return res.status(404).json({ error: 'Orden no encontrada' });
-
-      const transitionError = validateTransition(order.status, status);
-      if (transitionError) {
-        return res.status(400).json({ error: transitionError });
-      }
-
-      await order.update({ status });
-
-      const updatedOrder = await getOrderWithRelations(id, storeId);
-
-      res.status(200).json(updatedOrder);
-    } catch (err) {
-      res.status(400).json({ error: err.message });
+    if (!storeId) {
+      return res.status(401).json({ error: 'storeId no encontrado en el token' });
     }
+
+    if (!status || !ORDER_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `status debe ser: ${ORDER_STATUSES.join(', ')}` });
+    }
+
+    const order = await getOrderForStore(id, storeId);
+    if (!order) return res.status(404).json({ error: 'Orden no encontrada' });
+
+    const transitionError = validateTransition(order.status, status);
+    if (transitionError) {
+      return res.status(400).json({ error: transitionError });
+    }
+
+    // Mapeo de status string → statusId
+    const STATUS_ID_MAP = {
+      pending: 1,
+      processing: 2,
+      ready: 3,
+      completed: 4,
+      cancelled: 5,
+    };
+
+    // Actualizar ambos campos para mantener consistencia
+    await order.update({
+      status,
+      statusId: STATUS_ID_MAP[status],
+    });
+
+    const updatedOrder = await getOrderWithRelations(id, storeId);
+    res.status(200).json(updatedOrder);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
+}
 
   static async moveToProduction(req, res) {
     req.body = { ...(req.body || {}), status: 'processing' };
