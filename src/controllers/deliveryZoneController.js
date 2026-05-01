@@ -1,22 +1,46 @@
 import { DeliveryZone, Headquarter, Status, Store } from '../models/index.js';
 
-function isPointInPolygon(lat, lon, polygon) {
-  let coordinates = null;
+// Normaliza cualquier formato de polígono a [[lng, lat], ...]
+function normalizePolygon(polygon) {
+  if (!polygon) return null;
 
-  if (Array.isArray(polygon)) {
-    coordinates = polygon;
-  } else if (typeof polygon === 'string') {
+  let raw = polygon;
+
+  if (typeof polygon === 'string') {
     try {
-      const parsedPolygon = JSON.parse(polygon);
-      return isPointInPolygon(lat, lon, parsedPolygon);
+      raw = JSON.parse(polygon);
     } catch {
-      return false;
+      return null;
     }
-  } else if (polygon?.type === 'Polygon') {
-    coordinates = polygon.coordinates?.[0] || null;
-  } else if (polygon?.type === 'Feature' && polygon.geometry?.type === 'Polygon') {
-    coordinates = polygon.geometry.coordinates?.[0] || null;
   }
+
+  // Array de objetos {lat, lng} → [[lng, lat]]
+  if (Array.isArray(raw) && raw[0]?.lat !== undefined && raw[0]?.lng !== undefined) {
+    return raw.map(p => [p.lng, p.lat]);
+  }
+
+  // Array de arrays [[lng, lat]] o [[lat, lng]] — ya normalizado
+  if (Array.isArray(raw) && Array.isArray(raw[0])) {
+    return raw;
+  }
+
+  // GeoJSON Polygon
+  if (raw?.type === 'Polygon') {
+    return raw.coordinates?.[0] || null;
+  }
+
+  // GeoJSON Feature
+  if (raw?.type === 'Feature' && raw.geometry?.type === 'Polygon') {
+    return raw.geometry.coordinates?.[0] || null;
+  }
+
+  return null;
+}
+
+// Ray-casting algorithm
+// Espera coordenadas en [[lng, lat], ...] donde xi = lng, yi = lat
+function isPointInPolygon(lat, lon, polygon) {
+  const coordinates = normalizePolygon(polygon);
 
   if (!Array.isArray(coordinates) || coordinates.length < 3) {
     return false;
@@ -24,12 +48,12 @@ function isPointInPolygon(lat, lon, polygon) {
 
   let inside = false;
   for (let i = 0, j = coordinates.length - 1; i < coordinates.length; j = i++) {
-    const [xi, yi] = coordinates[i];
+    const [xi, yi] = coordinates[i]; // xi = lng, yi = lat
     const [xj, yj] = coordinates[j];
 
+    // Verificar si el punto está exactamente sobre un segmento vertical del polígono
     const xiEqual = Math.abs(xi - lon) < 0.0000001;
     const xjEqual = Math.abs(xj - lon) < 0.0000001;
-
     if (xiEqual && xjEqual && Math.min(yi, yj) <= lat && lat <= Math.max(yi, yj)) {
       return true;
     }
@@ -45,14 +69,11 @@ function isPointInPolygon(lat, lon, polygon) {
 class DeliveryZoneController {
   /**
    * Crear una nueva zona de entrega
-   * @param {Object} req - Request object con { storeId, name, polygon, metadata, zoneid }
-   * @param {Object} res - Response object
    */
   static async create(req, res) {
     try {
       const { headquarterId, name, polygon, metadata, zoneid } = req.body;
 
-      // Validaciones
       const storeId = req.user?.storeId;
       if (!storeId) {
         return res.status(401).json({ error: 'storeId no encontrado en el token' });
@@ -61,7 +82,6 @@ class DeliveryZoneController {
       if (!polygon) return res.status(400).json({ error: 'polygon es requerido (formato GeoJSON o WKT)' });
       if (!headquarterId) return res.status(400).json({ error: 'headquarterId es requerido' });
 
-      // Validar que la tienda existe
       const store = await Store.findByPk(storeId);
       if (!store) return res.status(404).json({ error: 'Store no encontrada' });
 
@@ -72,7 +92,12 @@ class DeliveryZoneController {
         return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
       }
 
-      // Crear zona de entrega
+      // Validar que el polígono sea parseable antes de guardarlo
+      const normalized = normalizePolygon(polygon);
+      if (!normalized || normalized.length < 3) {
+        return res.status(400).json({ error: 'El polígono no tiene un formato válido o tiene menos de 3 puntos' });
+      }
+
       const deliveryZone = await DeliveryZone.create({
         headquarterId,
         storeId,
@@ -91,8 +116,6 @@ class DeliveryZoneController {
 
   /**
    * Obtener todas las zonas de entrega de una tienda
-   * @param {Object} req - Request object con query.storeId
-   * @param {Object} res - Response object
    */
   static async getByStore(req, res) {
     try {
@@ -116,6 +139,9 @@ class DeliveryZoneController {
     }
   }
 
+  /**
+   * Verificar si una dirección está dentro de alguna zona de entrega
+   */
   static async checkAddress(req, res) {
     try {
       const storeId = req.user?.storeId;
@@ -136,10 +162,7 @@ class DeliveryZoneController {
         return res.status(400).json({ error: 'latitude y longitude deben ser números válidos' });
       }
 
-      const where = {
-        storeId,
-        statusId: 1,
-      };
+      const where = { storeId, statusId: 1 };
 
       if (headquarterId !== undefined && headquarterId !== null) {
         const parsedHeadquarterId = Number(headquarterId);
@@ -151,7 +174,6 @@ class DeliveryZoneController {
         const headquarter = await Headquarter.findOne({
           where: { id: parsedHeadquarterId, storeId },
         });
-
         if (!headquarter) {
           return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
         }
@@ -168,26 +190,22 @@ class DeliveryZoneController {
         order: [['id', 'ASC']],
       });
 
-      const matchedZone = zones.find(zone => isPointInPolygon(parsedLatitude, parsedLongitude, zone.polygon));
+      const matchedZone = zones.find(zone =>
+        isPointInPolygon(parsedLatitude, parsedLongitude, zone.polygon)
+      );
 
       if (!matchedZone) {
         return res.status(200).json({
           valid: false,
           message: 'La dirección está fuera de las zonas de entrega disponibles',
-          coordinates: {
-            latitude: parsedLatitude,
-            longitude: parsedLongitude,
-          },
+          coordinates: { latitude: parsedLatitude, longitude: parsedLongitude },
         });
       }
 
       return res.status(200).json({
         valid: true,
         message: 'La dirección está dentro de una zona de entrega válida',
-        coordinates: {
-          latitude: parsedLatitude,
-          longitude: parsedLongitude,
-        },
+        coordinates: { latitude: parsedLatitude, longitude: parsedLongitude },
         zone: matchedZone,
       });
     } catch (err) {
@@ -197,8 +215,6 @@ class DeliveryZoneController {
 
   /**
    * Obtener una zona de entrega por ID
-   * @param {Object} req - Request object con params.id
-   * @param {Object} res - Response object
    */
   static async getById(req, res) {
     try {
@@ -228,8 +244,6 @@ class DeliveryZoneController {
 
   /**
    * Actualizar una zona de entrega
-   * @param {Object} req - Request object con params.id y body { name, polygon, metadata, zoneid }
-   * @param {Object} res - Response object
    */
   static async update(req, res) {
     try {
@@ -245,11 +259,17 @@ class DeliveryZoneController {
       if (!zone) return res.status(404).json({ error: 'Zona de entrega no encontrada' });
 
       if (headquarterId) {
-        const headquarter = await Headquarter.findOne({
-          where: { id: headquarterId, storeId },
-        });
+        const headquarter = await Headquarter.findOne({ where: { id: headquarterId, storeId } });
         if (!headquarter) {
           return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
+        }
+      }
+
+      // Validar polígono si se está actualizando
+      if (polygon) {
+        const normalized = normalizePolygon(polygon);
+        if (!normalized || normalized.length < 3) {
+          return res.status(400).json({ error: 'El polígono no tiene un formato válido o tiene menos de 3 puntos' });
         }
       }
 
@@ -278,8 +298,6 @@ class DeliveryZoneController {
 
   /**
    * Cambiar estado de una zona de entrega
-   * @param {Object} req - Request object con params.id y body { statusId }
-   * @param {Object} res - Response object
    */
   static async updateStatus(req, res) {
     try {
@@ -317,8 +335,6 @@ class DeliveryZoneController {
 
   /**
    * Eliminar una zona de entrega
-   * @param {Object} req - Request object con params.id
-   * @param {Object} res - Response object
    */
   static async delete(req, res) {
     try {

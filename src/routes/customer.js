@@ -179,6 +179,10 @@ const router = express.Router();
  *         description: Cliente no encontrado
  */
 
+router.get('/search', authRequired, async (req, res) => {
+  await CustomerController.search(req, res);
+}); 
+
 router.post('/', authRequired, async (req, res) => {
   await CustomerController.create(req, res);
 });

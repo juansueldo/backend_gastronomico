@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Customer, Store, Status } from '../models/index.js';
 
 class CustomerController {
@@ -74,6 +75,49 @@ class CustomerController {
             if (customer.storeId !== storeId) return res.status(403).json({ error: 'No tienes acceso a este cliente' });
             
             res.status(200).json(customer);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    // ─── Buscar por teléfono y/o email ────────────────────────────────────────
+    // GET /customers/search?phone=...&email=...
+    // Al menos uno de los dos parámetros es requerido.
+    // La búsqueda por teléfono es exacta; la de email es case-insensitive.
+    static async search(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+
+            if (!storeId) return res.status(401).json({ error: 'Store ID requerido en token' });
+
+            const { phone, email } = req.query;
+
+            if (!phone && !email) {
+                return res.status(400).json({ error: 'Debés proporcionar al menos phone o email como parámetro de búsqueda' });
+            }
+
+            const conditions = [];
+
+            if (phone) {
+                conditions.push({ phone });
+            }
+
+            if (email) {
+                conditions.push({ email: { [Op.iLike]: email.trim() } });
+            }
+
+            const customers = await Customer.findAndCountAll({
+                where: {
+                    storeId,
+                    [Op.or]: conditions,
+                },
+                include: [
+                    { model: Store, attributes: ['id', 'name'] },
+                    { model: Status, attributes: ['id', 'name'] },
+                ],
+            });
+
+            res.status(200).json(customers);
         } catch (err) {
             res.status(400).json({ error: err.message });
         }
