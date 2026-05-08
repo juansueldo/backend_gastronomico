@@ -42,6 +42,7 @@ const options = {
       { name: 'Customer', description: 'Gestión de clientes' },
       { name: 'Contact', description: 'Contactos de clientes' },
       { name: 'DeliveryZone', description: 'Zonas de entrega' },
+      { name: 'Locality', description: 'Localidades derivadas de zonas de entrega' },
       { name: 'Instance', description: 'Instancias de canales de comunicación' },
       { name: 'Network', description: 'Redes de comunicación' },
       { name: 'Product', description: 'Productos del catálogo' },

@@ -1,5 +1,6 @@
 import { Product, Category, Store } from "../models/index.js";
 import ImageService from '../services/imageService.js';
+import { parseLocaleNumber } from '../utils/numberParser.js';
 
 class ProductController {
 
@@ -53,11 +54,16 @@ class ProductController {
                 imageUrl = imageResult.url;
             }
 
+            const parsedPrice = parseLocaleNumber(price);
+            if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+                return res.status(400).json({ error: 'price debe ser un número válido mayor a 0' });
+            }
+
             // Crear producto
             const product = await Product.create({ 
                 name, 
                 description, 
-                price, 
+                price: parsedPrice, 
                 categoryId: finalCategoryId,
                 storeId,
                 type: 'simple',
@@ -173,11 +179,19 @@ class ProductController {
                 newImageUrl = imageResult.url;
             }
 
+            let parsedUpdatedPrice = product.price;
+            if (price !== undefined) {
+                parsedUpdatedPrice = parseLocaleNumber(price);
+                if (!Number.isFinite(parsedUpdatedPrice) || parsedUpdatedPrice <= 0) {
+                    return res.status(400).json({ error: 'price debe ser un número válido mayor a 0' });
+                }
+            }
+
             // Actualizar producto
             await product.update({
                 name: name || product.name,
                 description: description !== undefined ? description : product.description,
-                price: price || product.price,
+                price: parsedUpdatedPrice,
                 categoryId: categoryId || product.categoryId,
                 image_url: newImageUrl
             });

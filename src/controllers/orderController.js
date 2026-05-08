@@ -12,6 +12,7 @@ import {
   User,
   Waiter,
 } from '../models/index.js';
+import { parseLocaleNumber } from '../utils/numberParser.js';
 
 const ORDER_STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'];
 const ORDER_STATUS_TRANSITIONS = {
@@ -245,12 +246,17 @@ class OrderController {
       if (!product) return res.status(404).json({ error: `Producto ${item.productId} no encontrado` });
       if (product.storeId !== storeId) return res.status(403).json({ error: `Producto ${item.productId} no pertenece a esta tienda` });
 
-      totalAmount += parseFloat(product.price) * item.quantity;
+      const parsedProductPrice = parseLocaleNumber(product.price);
+      if (!Number.isFinite(parsedProductPrice)) {
+        return res.status(400).json({ error: `Precio inválido en el producto ${item.productId}` });
+      }
+
+      totalAmount += parsedProductPrice * item.quantity;
       itemsData.push({
         headquarterId: normalizedHeadquarterId,
         productId: item.productId,
         quantity: item.quantity,
-        price: parseFloat(product.price),
+        price: parsedProductPrice,
         storeId,
       });
     }
@@ -383,7 +389,6 @@ class OrderController {
       cancelled: 5,
     };
 
-    // Actualizar ambos campos para mantener consistencia
     await order.update({
       status,
       statusId: STATUS_ID_MAP[status],

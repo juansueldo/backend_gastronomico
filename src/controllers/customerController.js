@@ -106,7 +106,7 @@ class CustomerController {
                 conditions.push({ email: { [Op.iLike]: email.trim() } });
             }
 
-            const customers = await Customer.findAndCountAll({
+            const customers = await Customer.findOne({
                 where: {
                     storeId,
                     [Op.or]: conditions,
@@ -116,7 +116,7 @@ class CustomerController {
                     { model: Status, attributes: ['id', 'name'] },
                 ],
             });
-
+            console.log(customers);
             res.status(200).json(customers);
         } catch (err) {
             res.status(400).json({ error: err.message });

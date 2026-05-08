@@ -21,6 +21,7 @@ import billingCycleRoutes from './src/routes/billingCycle.js';
 import roleRoutes from './src/routes/role.js';
 import orderRoutes from './src/routes/order.js';
 import deliveryZoneRoutes from './src/routes/deliveryZone.js';
+import localitiesRoutes from './src/routes/localities.js';
 import subscriptionRoutes from './src/routes/subscription.js';
 import tableRoutes from './src/routes/table.js';
 import waiterRoutes from './src/routes/waiter.js';
@@ -96,6 +97,7 @@ app.use(`/${version}/contact`, authOptional, contactRoutes);
 // Rutas protegidas (requieren autenticación válida)
 app.use(`/${version}/order`, authRequired, orderRoutes);
 app.use(`/${version}/delivery-zone`, authRequired, deliveryZoneRoutes);
+app.use(`/${version}/localities`, authRequired, localitiesRoutes);
 app.use(`/${version}/subscription`, authRequired, subscriptionRoutes);
 app.use(`/${version}/table`, authRequired, tableRoutes);
 app.use(`/${version}/waiter`, authRequired, waiterRoutes);
