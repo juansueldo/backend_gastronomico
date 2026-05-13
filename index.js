@@ -30,6 +30,7 @@ import productRoutes from './src/routes/product.js';
 import userRoutes from './src/routes/user.js';
 import websocketRoutes from './src/routes/websocket.js';
 import headquarterRoutes from './src/routes/headquarter.js';
+import storefrontRoutes from './src/routes/storefront.js';
 
 const version = process.env.API_VERSION || 'v1';
 process.removeAllListeners('warning');
@@ -79,6 +80,7 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Rutas públicas (sin autenticación)
 app.use(`/${version}/auth`, authRoutes);
+app.use(`/${version}/store`, storefrontRoutes);
 
 // Rutas con autenticación opcional (GET públicas, CREATE protegidas en la ruta)
 app.use(`/${version}/status`, authOptional, statusRoutes);

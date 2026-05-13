@@ -5,11 +5,11 @@ import { Store, User, Role } from '../models/index.js';
 class UserController {
     static async createUser(req, res) {
         try {
-            const { firstname, username, lastname, email, password, roleId } = req.body;
+            const { firstname, username, lastname, email, password, roleId, headquarterId } = req.body;
             const storeId = req.user?.storeId;
             if(await User.findOne({ where: { username } })) throw new Error('Username already exists');
             const hashedPassword = await bcrypt.hash(password, 10);
-            const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId, statusId: 1, roleId });
+            const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId, statusId: 1, roleId, headquarterId });
             if (!user) throw new Error('Error creating user');
             res.status(201).json({ user });
         }catch (err) {
@@ -42,7 +42,7 @@ class UserController {
     static async updateUser(req, res) {
         try {
             const { id } = req.params;
-            const { firstname, username, lastname, email, password, roleId } = req.body;
+            const { firstname, username, lastname, email, password, roleId, headquarterId } = req.body;
             const storeId = req.user?.storeId;
 
             const user = await User.findOne({ where: { id, storeId } });
@@ -70,6 +70,7 @@ class UserController {
             if (email !== undefined) updateData.email = email;
             if (username !== undefined) updateData.username = username;
             if (roleId !== undefined) updateData.roleId = roleId;
+            if (headquarterId !== undefined) updateData.headquarterId = headquarterId;
 
             if (password) {
                 updateData.password = await bcrypt.hash(password, 10);

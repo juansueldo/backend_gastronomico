@@ -1,25 +1,36 @@
-import { Table, Store, Status } from '../models/index.js';
+import { Table, Store, Status, Headquarter } from '../models/index.js';
 
 class TableController {
   static async create(req, res) {
     try {
       const { name, table_number, capacity, location, description, metadata, headquarterId } = req.body;
       const storeId = req.user?.storeId;
+      const normalizedHeadquarterId = Number(headquarterId);
 
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
       if (!name) return res.status(400).json({ error: 'name es requerido' });
       if (!table_number) return res.status(400).json({ error: 'table_number es requerido' });
+      if (!headquarterId) return res.status(400).json({ error: 'headquarterId es requerido' });
+      if (!Number.isInteger(normalizedHeadquarterId) || normalizedHeadquarterId <= 0) {
+        return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
+      }
 
       // Validar que la tienda existe
       const store = await Store.findByPk(storeId);
       if (!store) return res.status(404).json({ error: 'Tienda no encontrada' });
 
-      // Validar que no exista mesa con el mismo número en la tienda
+      // Validar que la sede exista y pertenezca a la tienda
+      const headquarter = await Headquarter.findOne({
+        where: { id: normalizedHeadquarterId, storeId }
+      });
+      if (!headquarter) return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
+
+      // Validar que no exista mesa con el mismo número en la sede
       const existingTable = await Table.findOne({
-        where: { storeId, table_number }
+        where: { storeId, headquarterId: normalizedHeadquarterId, table_number }
       });
       if (existingTable) {
-        return res.status(400).json({ error: `Mesa ${table_number} ya existe en esta tienda` });
+        return res.status(400).json({ error: `Mesa ${table_number} ya existe en esta sede` });
       }
 
       const table = await Table.create({
@@ -31,7 +42,7 @@ class TableController {
         description,
         metadata,
         statusId: 1,
-        headquarterId
+        headquarterId: normalizedHeadquarterId
       });
 
       const result = await Table.findByPk(table.id, {
@@ -50,11 +61,20 @@ class TableController {
   static async getAll(req, res) {
     try {
       const storeId = req.user?.storeId;
+      const rawHeadquarterId = req.query.headquarterId ?? req.user?.headquarterId;
 
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+      if (rawHeadquarterId === undefined || rawHeadquarterId === null || rawHeadquarterId === '') {
+        return res.status(400).json({ error: 'headquarterId es requerido' });
+      }
+
+      const headquarterId = Number(rawHeadquarterId);
+      if (!Number.isInteger(headquarterId) || headquarterId <= 0) {
+        return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
+      }
 
       const tables = await Table.findAndCountAll({
-        where: { storeId },
+        where: { storeId, headquarterId },
         include: [
           { model: Store, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] }
@@ -110,10 +130,10 @@ class TableController {
       // Si se intenta cambiar el número de mesa, validar que no exista otra con ese número
       if (table_number && table_number !== table.table_number) {
         const existingTable = await Table.findOne({
-          where: { storeId, table_number }
+          where: { storeId, headquarterId: table.headquarterId, table_number }
         });
         if (existingTable) {
-          return res.status(400).json({ error: `Mesa ${table_number} ya existe en esta tienda` });
+          return res.status(400).json({ error: `Mesa ${table_number} ya existe en esta sede` });
         }
       }
 

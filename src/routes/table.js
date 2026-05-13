@@ -24,11 +24,15 @@ const router = express.Router();
  *             required:
  *               - name
  *               - table_number
+ *               - headquarterId
  *             properties:
  *               name:
  *                 type: string
  *                 example: "Mesa 1"
  *               table_number:
+ *                 type: integer
+ *                 example: 1
+ *               headquarterId:
  *                 type: integer
  *                 example: 1
  *               capacity:
@@ -51,16 +55,25 @@ const router = express.Router();
  *         description: No autorizado
  *   get:
  *     summary: Obtener todas las mesas
- *     description: Lista todas las mesas de la tienda autenticada
+ *     description: Lista las mesas de la tienda autenticada filtradas por sede
  *     tags:
  *       - Table
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: headquarterId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: ID de la sede para filtrar las mesas
  *     responses:
  *       200:
  *         description: Lista de mesas
  *       401:
  *         description: No autorizado
+ *       400:
+ *         description: headquarterId inválido o faltante
  * /table/{id}:
  *   get:
  *     summary: Obtener detalle de una mesa
