@@ -170,6 +170,106 @@ const router = express.Router();
  *         description: No autorizado
  *       404:
  *         description: Sede no encontrada
+ * /headquarter/{id}/cash-register/close:
+ *   post:
+ *     summary: Realizar cierre de caja
+ *     description: Cierra la caja abierta para la sede, calculando el saldo esperado del período abierto y permitiendo informar el monto contado.
+ *     tags:
+ *       - CashRegister
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               countedAmount:
+ *                 type: number
+ *                 example: 55000
+ *                 description: Monto contado al cierre. Si no se envía, se usa el saldo esperado.
+ *               description:
+ *                 type: string
+ *                 example: "Cierre de turno noche"
+ *               reference:
+ *                 type: string
+ *                 example: "CIERRE-2026-05-12"
+ *               movementDate:
+ *                 type: string
+ *                 format: date-time
+ *               metadata:
+ *                 type: object
+ *     responses:
+ *       201:
+ *         description: Cierre registrado correctamente
+ *       400:
+ *         description: Error de validación
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Sede no encontrada
+ *       409:
+ *         description: No hay caja abierta para cerrar
+ * /headquarter/{id}/cash-register/periods:
+ *   get:
+ *     summary: Obtener períodos de caja
+ *     description: Lista períodos de caja (abiertos y/o cerrados) con resumen financiero y opcionalmente sus movimientos.
+ *     tags:
+ *       - CashRegister
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: from
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha mínima para filtrar períodos
+ *       - in: query
+ *         name: to
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Fecha máxima para filtrar períodos
+ *       - in: query
+ *         name: includeOpen
+ *         schema:
+ *           type: boolean
+ *           default: true
+ *         description: Incluir períodos abiertos (sin cierre registrado)
+ *       - in: query
+ *         name: includeMovements
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Incluir detalle de movimientos dentro de cada período
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           example: 20
+ *         description: Cantidad máxima de períodos a devolver
+ *     responses:
+ *       200:
+ *         description: Períodos obtenidos correctamente
+ *       400:
+ *         description: Parámetros inválidos
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Sede no encontrada
  */
 router.post('/', async (req, res) => {
   await HeadquarterController.create(req, res);
@@ -189,6 +289,14 @@ router.get('/:id/cash-register', async (req, res) => {
 
 router.post('/:id/cash-register', async (req, res) => {
   await CashRegisterController.createMovement(req, res);
+});
+
+router.post('/:id/cash-register/close', async (req, res) => {
+  await CashRegisterController.closeCashRegister(req, res);
+});
+
+router.get('/:id/cash-register/periods', async (req, res) => {
+  await CashRegisterController.getPeriods(req, res);
 });
 
 export default router;
