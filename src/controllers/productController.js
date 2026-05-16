@@ -2,6 +2,17 @@ import { Product, Category, Store } from "../models/index.js";
 import ImageService from '../services/imageService.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
 
+const MAX_PRODUCT_IMAGE_BYTES = Number(process.env.PRODUCT_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
+
+function getBase64SizeInBytes(base64String) {
+    const cleanBase64 = base64String.includes(',')
+        ? base64String.split(',')[1]
+        : base64String;
+
+    const padding = cleanBase64.endsWith('==') ? 2 : cleanBase64.endsWith('=') ? 1 : 0;
+    return Math.floor((cleanBase64.length * 3) / 4) - padding;
+}
+
 class ProductController {
 
     static async create(req, res) {
@@ -40,6 +51,16 @@ class ProductController {
             // Procesar imagen si se proporciona
             let imageUrl = null;
             if (image) {
+                const imageSizeBytes = getBase64SizeInBytes(image);
+                if (!Number.isFinite(imageSizeBytes) || imageSizeBytes <= 0) {
+                    return res.status(400).json({ error: 'No se pudo determinar el tamaño de la imagen base64' });
+                }
+                if (imageSizeBytes > MAX_PRODUCT_IMAGE_BYTES) {
+                    return res.status(413).json({
+                        error: `Imagen demasiado grande. Máximo permitido: ${Math.floor(MAX_PRODUCT_IMAGE_BYTES / (1024 * 1024))}MB`,
+                    });
+                }
+
                 // Validar que es válido base64
                 if (!ImageService.isValidBase64(image)) {
                     return res.status(400).json({ error: 'Imagen debe ser un string base64 válido' });
@@ -161,6 +182,16 @@ class ProductController {
             // Procesar nueva imagen si se proporciona
             let newImageUrl = product.image_url;
             if (image) {
+                const imageSizeBytes = getBase64SizeInBytes(image);
+                if (!Number.isFinite(imageSizeBytes) || imageSizeBytes <= 0) {
+                    return res.status(400).json({ error: 'No se pudo determinar el tamaño de la imagen base64' });
+                }
+                if (imageSizeBytes > MAX_PRODUCT_IMAGE_BYTES) {
+                    return res.status(413).json({
+                        error: `Imagen demasiado grande. Máximo permitido: ${Math.floor(MAX_PRODUCT_IMAGE_BYTES / (1024 * 1024))}MB`,
+                    });
+                }
+
                 if (!ImageService.isValidBase64(image)) {
                     return res.status(400).json({ error: 'Imagen debe ser un string base64 válido' });
                 }

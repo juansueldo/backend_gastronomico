@@ -27,6 +27,7 @@ import StockMovement from './stockMovement.js';
 import Table from './table.js';
 import Waiter from './waiter.js';
 import CashRegisterMovement from './cashRegisterMovement.js';
+import Notification from './notification.js';
 
 export {
   Status,
@@ -55,6 +56,7 @@ export {
   Waiter,
   Headquarter,
   CashRegisterMovement,
+  Notification,
   sequelize
 };
 

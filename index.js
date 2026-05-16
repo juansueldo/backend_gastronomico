@@ -31,15 +31,18 @@ import userRoutes from './src/routes/user.js';
 import websocketRoutes from './src/routes/websocket.js';
 import headquarterRoutes from './src/routes/headquarter.js';
 import storefrontRoutes from './src/routes/storefront.js';
+import notificationRoutes from './src/routes/notification.js';
 
 const version = process.env.API_VERSION || 'v1';
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '10mb';
 process.removeAllListeners('warning');
 process.on('warning', () => {});
 
 
 const app = express();
 // Middleware JSON
-app.use(express.json());
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 const allowedOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',')
   : [];
@@ -107,9 +110,19 @@ app.use(`/${version}/category`, authRequired, categoryRoutes);
 app.use(`/${version}/product`, authRequired, productRoutes);
 app.use(`/${version}/user`, authRequired, userRoutes);
 app.use(`/${version}/headquarter`, authRequired, headquarterRoutes);
+app.use(`${version}/notifications`,authRequired, notificationRoutes);
 
 // Rutas WebSocket (status y debugging)
 app.use(`/${version}/websocket`, authOptional, websocketRoutes);
 
+// Manejo centralizado de payload demasiado grande
+app.use((err, req, res, next) => {
+  if (err?.type === 'entity.too.large') {
+    return res.status(413).json({
+      error: `Payload demasiado grande. Máximo permitido: ${requestBodyLimit}`,
+    });
+  }
+  return next(err);
+});
 
 export default app;

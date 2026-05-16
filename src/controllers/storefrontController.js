@@ -1,3 +1,4 @@
+
 import sequelize from '../models/db.js';
 import {
   Category,
@@ -6,9 +7,10 @@ import {
   Order,
   OrderItem,
   Product,
-  Store,
+  Store
 } from '../models/index.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
+import NotificationService from '../services/notificationService.js';
 
 const ACTIVE_STATUS_ID = 1;
 
@@ -381,7 +383,7 @@ class StorefrontController {
             orderId: order.id,
           }, { transaction }))
         );
-
+        // No crear notificación aquí, se hará después
         return order;
       });
 
@@ -396,6 +398,18 @@ class StorefrontController {
           { model: Store, attributes: ['id', 'name', 'slug'] },
         ],
       });
+
+      // Crear y enviar notificaciones al store y headquarter
+      try {
+        await NotificationService.notifyOrderCreatedWithPersistence(
+          store.id,
+          headquarterId,
+          orderWithItems
+        );
+      } catch (notificationErr) {
+        console.error('Error enviando notificación de orden pública:', notificationErr);
+        // Continuar sin fallar la creación de la orden
+      }
 
       return res.status(201).json(orderWithItems);
     } catch (err) {

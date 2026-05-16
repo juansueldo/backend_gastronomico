@@ -13,6 +13,7 @@ import {
   Waiter,
 } from '../models/index.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
+import NotificationService from '../services/notificationService.js';
 
 const ORDER_STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'];
 const ORDER_STATUS_TRANSITIONS = {
@@ -293,6 +294,19 @@ class OrderController {
     });
 
     const orderWithItems = await getOrderWithRelations(createdOrder.id, storeId);
+
+    // Crear y enviar notificaciones al store y headquarter
+    try {
+      await NotificationService.notifyOrderCreatedWithPersistence(
+        storeId,
+        normalizedHeadquarterId,
+        orderWithItems
+      );
+    } catch (notificationErr) {
+      console.error('Error enviando notificación de orden:', notificationErr);
+      // Continuar sin fallar la creación de la orden
+    }
+
     res.status(201).json(orderWithItems);
 
   } catch (err) {
