@@ -67,7 +67,7 @@ class ProductController {
                 }
 
                 // Guardar imagen
-                const imageResult = ImageService.saveImage(
+                const imageResult = await ImageService.saveImage(
                     image, 
                     storeId, 
                     `product_${Date.now()}`
@@ -198,11 +198,11 @@ class ProductController {
 
                 // Eliminar imagen anterior si existe
                 if (product.image_url) {
-                    ImageService.deleteImage(product.image_url);
+                    await ImageService.deleteImage(product.image_url);
                 }
 
                 // Guardar nueva imagen
-                const imageResult = ImageService.saveImage(
+                const imageResult = await ImageService.saveImage(
                     image, 
                     storeId, 
                     `product_${id}_${Date.now()}`
@@ -261,7 +261,7 @@ class ProductController {
 
             // Eliminar imagen si existe
             if (product.image_url) {
-                ImageService.deleteImage(product.image_url);
+                await ImageService.deleteImage(product.image_url);
             }
 
             await product.destroy();
