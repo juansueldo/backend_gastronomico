@@ -57,7 +57,7 @@ class ImageService {
       fs.writeFileSync(filepath, buffer);
 
       // Retornar URL relativa
-      const relativeUrl = `/images/products/store_${storeId}/${filename}`;
+      const relativeUrl = `https://backend-gastronomico.vercel.app/images/products/store_${storeId}/${filename}`;
 
       return {
         url: relativeUrl,
