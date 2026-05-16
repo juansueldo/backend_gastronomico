@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const imageBaseUrl = (process.env.IMAGE_BASE_URL || '').replace(/\/+$/, '');
 
 class ImageService {
   /**
@@ -56,8 +57,8 @@ class ImageService {
       // Guardar el archivo
       fs.writeFileSync(filepath, buffer);
 
-      // Retornar URL relativa
-      const relativeUrl = `https://backend-gastronomico.vercel.app/images/products/store_${storeId}/${filename}`;
+      const relativePath = `/images/products/store_${storeId}/${filename}`;
+      const relativeUrl = imageBaseUrl ? `${imageBaseUrl}${relativePath}` : relativePath;
 
       return {
         url: relativeUrl,
