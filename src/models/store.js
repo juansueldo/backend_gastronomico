@@ -9,6 +9,7 @@ const Store = sequelize.define('Store', {
   slug: { type: DataTypes.STRING, allowNull: false, unique: true },
   timezone: { type: DataTypes.STRING, allowNull: false },
   location: { type: DataTypes.STRING },
+  profile_image_url: { type: DataTypes.STRING, allowNull: true },
 });
 
 Store.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 }); // Asignar statusId por defecto a 1 (Activo)

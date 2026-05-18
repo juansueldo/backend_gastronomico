@@ -28,6 +28,7 @@ import Table from './table.js';
 import Waiter from './waiter.js';
 import CashRegisterMovement from './cashRegisterMovement.js';
 import Notification from './notification.js';
+import HeadquarterSchedule from './headquarterSchedule.js';
 
 export {
   Status,
@@ -57,6 +58,7 @@ export {
   Headquarter,
   CashRegisterMovement,
   Notification,
+  HeadquarterSchedule,
   sequelize
 };
 

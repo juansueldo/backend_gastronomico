@@ -15,6 +15,8 @@ class AuthController {
         slug,
         timezone,
         location,
+        profile_image_url,
+        profileImageUrl,
         firstname,
         username,
         lastname,
@@ -85,6 +87,7 @@ class AuthController {
           slug,
           timezone,
           location,
+          profile_image_url: profile_image_url || profileImageUrl || null,
           statusId: 1
         },
         { transaction }

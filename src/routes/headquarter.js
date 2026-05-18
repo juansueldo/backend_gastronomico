@@ -32,6 +32,37 @@ const router = express.Router();
  *               location:
  *                 type: string
  *                 example: "Av. Corrientes 1234"
+ *               open_time:
+ *                 type: string
+ *                 example: "09:00"
+ *                 description: Hora de apertura en formato HH:mm
+ *               close_time:
+ *                 type: string
+ *                 example: "22:30"
+ *                 description: Hora de cierre en formato HH:mm
+ *               working_days:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+ *                 example: ["monday", "tuesday", "wednesday", "thursday", "friday"]
+ *               closure_periods:
+ *                 type: array
+ *                 description: Períodos excepcionales de cierre (vacaciones, feriados especiales). Para un día puntual usar start_date igual a end_date.
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-07-15"
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                       example: "2026-07-20"
+ *                     reason:
+ *                       type: string
+ *                       example: "Vacaciones de invierno"
  *     responses:
  *       201:
  *         description: Sede creada exitosamente
@@ -67,6 +98,68 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: Sede encontrada
+ *       401:
+ *         description: No autorizado
+ *       404:
+ *         description: Sede no encontrada
+ *   put:
+ *     summary: Actualizar una sede por ID
+ *     tags:
+ *       - Headquarter
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: "Sucursal Centro Renovada"
+ *               phone:
+ *                 type: string
+ *                 example: "+54 11 5555 8888"
+ *               location:
+ *                 type: string
+ *                 example: "Av. Corrientes 999"
+ *               open_time:
+ *                 type: string
+ *                 example: "10:00"
+ *               close_time:
+ *                 type: string
+ *                 example: "23:00"
+ *               working_days:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   enum: [monday, tuesday, wednesday, thursday, friday, saturday, sunday]
+ *               closure_periods:
+ *                 type: array
+ *                 description: Períodos excepcionales de cierre. Para un día puntual usar start_date igual a end_date.
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     start_date:
+ *                       type: string
+ *                       format: date
+ *                     end_date:
+ *                       type: string
+ *                       format: date
+ *                     reason:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Sede actualizada correctamente
+ *       400:
+ *         description: Error de validación
  *       401:
  *         description: No autorizado
  *       404:
@@ -281,6 +374,14 @@ router.get('/', async (req, res) => {
 
 router.get('/:id', async(req, res)=>{
   await HeadquarterController.getById(req, res);
+});
+
+router.put('/:id', async (req, res) => {
+  await HeadquarterController.update(req, res);
+});
+
+router.put('/:id/schedules', async (req, res) => {
+  await HeadquarterController.configureSchedules(req, res);
 });
 
 router.get('/:id/cash-register', async (req, res) => {

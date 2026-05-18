@@ -38,6 +38,10 @@ const router = express.Router();
  *               location:
  *                 type: string
  *                 example: "Montevideo"
+ *               profile_image_url:
+ *                 type: string
+ *                 nullable: true
+ *                 example: "https://cdn.miapp.com/stores/mi-restaurante/perfil.png"
  *               firstname:
  *                 type: string
  *                 example: "Juan"
@@ -72,6 +76,9 @@ const router = express.Router();
  *                       type: string
  *                     slug:
  *                       type: string
+ *                     profile_image_url:
+ *                       type: string
+ *                       nullable: true
  *                 user:
  *                   type: object
  *                   properties:

@@ -7,12 +7,24 @@ import {
   Order,
   OrderItem,
   Product,
-  Store
+  Store,
+  HeadquarterSchedule
 } from '../models/index.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
+import ImageService from '../services/imageService.js';
 
 const ACTIVE_STATUS_ID = 1;
+const MAX_STORE_IMAGE_BYTES = Number(process.env.STORE_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
+
+function getBase64SizeInBytes(base64String) {
+  const cleanBase64 = base64String.includes(',')
+    ? base64String.split(',')[1]
+    : base64String;
+
+  const padding = cleanBase64.endsWith('==') ? 2 : cleanBase64.endsWith('=') ? 1 : 0;
+  return Math.floor((cleanBase64.length * 3) / 4) - padding;
+}
 
 function toPositiveInteger(value) {
   const parsed = Number(value);
@@ -20,11 +32,28 @@ function toPositiveInteger(value) {
 }
 
 function normalizeHeadquarter(headquarter) {
+  const closurePeriods = Array.isArray(headquarter.closure_periods) && headquarter.closure_periods.length > 0
+    ? headquarter.closure_periods
+    : undefined;
+
+  // Horarios
+  const schedules = Array.isArray(headquarter.schedules)
+    ? headquarter.schedules.map(s => ({
+        day_of_week: s.day_of_week,
+        open_time: s.open_time,
+        close_time: s.close_time,
+        is_closed: s.is_closed
+      }))
+    : [];
+
   return {
     id: String(headquarter.id),
     name: headquarter.name,
     location: headquarter.location || undefined,
     phone: headquarter.phone || undefined,
+    closure_periods: closurePeriods,
+    closurePeriods: closurePeriods,
+    schedules,
   };
 }
 
@@ -86,6 +115,63 @@ function mapStoreOrderType(rawType) {
 }
 
 class StorefrontController {
+  static async uploadStoreImage(req, res) {
+    try {
+      const storeId = req.user?.storeId;
+      const { image } = req.body;
+
+      if (!storeId) {
+        return res.status(401).json({ error: 'storeId no encontrado en el token' });
+      }
+
+      if (!image || typeof image !== 'string') {
+        return res.status(400).json({ error: 'image es requerido y debe ser string base64' });
+      }
+
+      const store = await Store.findByPk(storeId);
+      if (!store) {
+        return res.status(404).json({ error: 'Tienda no encontrada' });
+      }
+
+      const imageSizeBytes = getBase64SizeInBytes(image);
+      if (!Number.isFinite(imageSizeBytes) || imageSizeBytes <= 0) {
+        return res.status(400).json({ error: 'No se pudo determinar el tamaño de la imagen base64' });
+      }
+
+      if (imageSizeBytes > MAX_STORE_IMAGE_BYTES) {
+        return res.status(413).json({
+          error: `Imagen demasiado grande. Máximo permitido: ${Math.floor(MAX_STORE_IMAGE_BYTES / (1024 * 1024))}MB`,
+        });
+      }
+
+      if (!ImageService.isValidBase64(image)) {
+        return res.status(400).json({ error: 'Imagen debe ser un string base64 válido' });
+      }
+
+      if (store.profile_image_url) {
+        await ImageService.deleteImage(store.profile_image_url);
+      }
+
+      const imageResult = await ImageService.saveImage(
+        image,
+        storeId,
+        `store_${storeId}_${Date.now()}`
+      );
+
+      await store.update({
+        profile_image_url: imageResult.url,
+      });
+
+      return res.status(200).json({
+        message: 'Imagen de tienda actualizada correctamente',
+        profile_image_url: imageResult.url,
+        profileImageUrl: imageResult.url,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   static async getPublicStore(req, res) {
     try {
       const slug = String(req.params.slug || '').trim();
@@ -97,10 +183,18 @@ class StorefrontController {
 
       if (!store) return res.status(404).json({ error: 'Tienda no encontrada' });
 
+
       const headquarters = await Headquarter.findAll({
         where: { storeId: store.id, statusId: ACTIVE_STATUS_ID },
-        attributes: ['id', 'name', 'location', 'phone'],
+        attributes: ['id', 'name', 'location', 'phone', 'closure_periods'],
         order: [['id', 'ASC']],
+        include: [
+          {
+            model: HeadquarterSchedule,
+            as: 'schedules',
+            attributes: ['day_of_week', 'open_time', 'close_time', 'is_closed'],
+          },
+        ],
       });
 
       const pickupHeadquarters = headquarters.map(normalizeHeadquarter);
@@ -110,6 +204,8 @@ class StorefrontController {
         id: String(store.id),
         slug: store.slug,
         name: store.name,
+        profile_image_url: store.profile_image_url || undefined,
+        profileImageUrl: store.profile_image_url || undefined,
         statusId: store.statusId,
         pickupHeadquarters,
         pickup_headquarters: pickupHeadquarters,
@@ -145,7 +241,7 @@ class StorefrontController {
 
       const headquarters = await Headquarter.findAll({
         where: { storeId: store.id, statusId: ACTIVE_STATUS_ID },
-        attributes: ['id', 'name', 'location', 'phone'],
+        attributes: ['id', 'name', 'location', 'phone', 'closure_periods'],
         order: [['id', 'ASC']],
       });
 

@@ -8,6 +8,7 @@ const Headquarter = sequelize.define('Headquarter', {
   name: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING },
   location: { type: DataTypes.STRING },
+  closure_periods: { type: DataTypes.JSON, allowNull: true },
 });
 
 Headquarter.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 }); // Asignar statusId por defecto a 1 (Activo)
