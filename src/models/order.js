@@ -18,6 +18,8 @@ const Order = sequelize.define('Order', {
     delivery_latitude: { type: DataTypes.FLOAT, allowNull: true },
     delivery_longitude: { type: DataTypes.FLOAT, allowNull: true },
     delivery_date: { type: DataTypes.DATE, allowNull: true },
+    scheduled_date: { type: DataTypes.DATEONLY, allowNull: true },
+    scheduled_time: { type: DataTypes.TIME, allowNull: true },
     status: { type: DataTypes.ENUM, values: ['pending', 'processing', 'ready', 'completed', 'cancelled'], allowNull: false, defaultValue: 'pending' },
     tableId: { type: DataTypes.INTEGER, allowNull: true },
     waiterId: { type: DataTypes.INTEGER, allowNull: true },

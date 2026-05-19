@@ -24,24 +24,41 @@ const ORDER_STATUS_TRANSITIONS = {
   cancelled: ['pending', 'processing', 'ready'],
 };
 
-// Función para validar si un punto está dentro de un polígono (ray-casting algorithm)
-function isPointInPolygon(lat, lon, polygon) {
-  let coordinates = null;
+function normalizePolygon(polygon) {
+  if (!polygon) return null;
 
-  if (Array.isArray(polygon)) {
-    coordinates = polygon;
-  } else if (typeof polygon === 'string') {
+  let rawPolygon = polygon;
+
+  if (typeof rawPolygon === 'string') {
     try {
-      const parsedPolygon = JSON.parse(polygon);
-      return isPointInPolygon(lat, lon, parsedPolygon);
+      rawPolygon = JSON.parse(rawPolygon);
     } catch {
-      return false;
+      return null;
     }
-  } else if (polygon?.type === 'Polygon') {
-    coordinates = polygon.coordinates?.[0] || null;
-  } else if (polygon?.type === 'Feature' && polygon.geometry?.type === 'Polygon') {
-    coordinates = polygon.geometry.coordinates?.[0] || null;
   }
+
+  if (Array.isArray(rawPolygon) && rawPolygon[0]?.lat !== undefined && rawPolygon[0]?.lng !== undefined) {
+    return rawPolygon.map((point) => [Number(point.lng), Number(point.lat)]);
+  }
+
+  if (Array.isArray(rawPolygon) && Array.isArray(rawPolygon[0])) {
+    return rawPolygon;
+  }
+
+  if (rawPolygon?.type === 'Polygon') {
+    return rawPolygon.coordinates?.[0] || null;
+  }
+
+  if (rawPolygon?.type === 'Feature' && rawPolygon.geometry?.type === 'Polygon') {
+    return rawPolygon.geometry.coordinates?.[0] || null;
+  }
+
+  return null;
+}
+
+// Ray-casting: espera coordenadas en [lng, lat]
+function isPointInPolygon(lat, lon, polygon) {
+  const coordinates = normalizePolygon(polygon);
 
   if (!Array.isArray(coordinates) || coordinates.length < 3) {
     return false;
@@ -107,6 +124,39 @@ function validateTransition(currentStatus, targetStatus) {
   return null;
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function normalizeScheduledDate(value) {
+  if (!hasValue(value)) return { value: null };
+
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return { value: raw };
+  }
+
+  const parsedDate = new Date(raw);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return { error: 'scheduled_date debe ser una fecha válida (YYYY-MM-DD)' };
+  }
+
+  return { value: parsedDate.toISOString().slice(0, 10) };
+}
+
+function normalizeScheduledTime(value) {
+  if (!hasValue(value)) return { value: null };
+
+  const raw = String(value).trim();
+  const timeMatch = raw.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  if (!timeMatch) {
+    return { error: 'scheduled_time debe tener formato HH:mm o HH:mm:ss' };
+  }
+
+  const [, hours, minutes, seconds = '00'] = timeMatch;
+  return { value: `${hours}:${minutes}:${seconds}` };
+}
+
 class OrderController {
   static async create(req, res) {
   try {
@@ -118,6 +168,8 @@ class OrderController {
       delivery_date,
       delivery_latitude,
       delivery_longitude,
+      scheduled_date,
+      scheduled_time,
       headquarterId,
       items,
       tableId,
@@ -147,7 +199,6 @@ class OrderController {
     }
 
     if (!userId) return res.status(400).json({ error: 'userId es requerido' });
-    if (!headquarterId) return res.status(400).json({ error: 'headquarterId es requerido' });
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'items debe ser un array no vacío' });
     }
@@ -155,16 +206,27 @@ class OrderController {
       return res.status(400).json({ error: 'type debe ser: dine-in, takeaway o delivery' });
     }
 
+    const normalizedScheduledDate = normalizeScheduledDate(scheduled_date);
+    if (normalizedScheduledDate.error) {
+      return res.status(400).json({ error: normalizedScheduledDate.error });
+    }
+
+    const normalizedScheduledTime = normalizeScheduledTime(scheduled_time);
+    if (normalizedScheduledTime.error) {
+      return res.status(400).json({ error: normalizedScheduledTime.error });
+    }
+
+    if (!normalizedScheduledDate.value && normalizedScheduledTime.value) {
+      return res.status(400).json({ error: 'Si envías scheduled_time también debes enviar scheduled_date' });
+    }
+
     const store = await Store.findByPk(storeId);
     if (!store) return res.status(404).json({ error: 'Store no encontrada' });
 
-    const normalizedHeadquarterId = Number(headquarterId);
-    if (!Number.isInteger(normalizedHeadquarterId) || normalizedHeadquarterId <= 0) {
+    const requestedHeadquarterId = hasValue(headquarterId) ? Number(headquarterId) : null;
+    if (requestedHeadquarterId !== null && (!Number.isInteger(requestedHeadquarterId) || requestedHeadquarterId <= 0)) {
       return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
     }
-
-    const headquarter = await Headquarter.findOne({ where: { id: normalizedHeadquarterId, storeId } });
-    if (!headquarter) return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
 
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -178,24 +240,30 @@ class OrderController {
 
     // Validaciones delivery
     let matchedDeliveryZone = null;
+    let resolvedHeadquarterId = requestedHeadquarterId;
+    let parsedDeliveryLatitude = null;
+    let parsedDeliveryLongitude = null;
     if (type === 'delivery') {
       if (!delivery_address) return res.status(400).json({ error: 'delivery_address es requerido para órdenes de delivery' });
       if (delivery_latitude === undefined || delivery_longitude === undefined) {
         return res.status(400).json({ error: 'delivery_latitude y delivery_longitude son requeridos para órdenes de delivery' });
       }
 
-      const latitude = Number(delivery_latitude);
-      const longitude = Number(delivery_longitude);
-      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      parsedDeliveryLatitude = Number(delivery_latitude);
+      parsedDeliveryLongitude = Number(delivery_longitude);
+      if (!Number.isFinite(parsedDeliveryLatitude) || !Number.isFinite(parsedDeliveryLongitude)) {
         return res.status(400).json({ error: 'delivery_latitude y delivery_longitude deben ser números válidos' });
       }
 
-      const deliveryZones = await DeliveryZone.findAll({
-        where: { headquarterId: normalizedHeadquarterId, storeId, statusId: 1 },
-      });
+      const deliveryZonesWhere = { storeId, statusId: 1 };
+      if (requestedHeadquarterId !== null) {
+        deliveryZonesWhere.headquarterId = requestedHeadquarterId;
+      }
+
+      const deliveryZones = await DeliveryZone.findAll({ where: deliveryZonesWhere });
 
       for (const zone of deliveryZones) {
-        if (isPointInPolygon(latitude, longitude, zone.polygon)) {
+        if (isPointInPolygon(parsedDeliveryLatitude, parsedDeliveryLongitude, zone.polygon)) {
           matchedDeliveryZone = zone;
           break;
         }
@@ -204,9 +272,29 @@ class OrderController {
       if (!matchedDeliveryZone) {
         return res.status(400).json({
           error: 'La dirección de entrega está fuera de las zonas de entrega disponibles',
-          details: { latitude, longitude },
+          details: { latitude: parsedDeliveryLatitude, longitude: parsedDeliveryLongitude },
         });
       }
+
+      resolvedHeadquarterId = matchedDeliveryZone.headquarterId;
+    } else {
+      if (requestedHeadquarterId === null) {
+        return res.status(400).json({ error: 'headquarterId es requerido' });
+      }
+    }
+
+    const headquarter = await Headquarter.findOne({ where: { id: resolvedHeadquarterId, storeId } });
+    if (!headquarter) return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
+
+    if (requestedHeadquarterId !== null && type === 'delivery' && resolvedHeadquarterId !== requestedHeadquarterId) {
+      return res.status(400).json({
+        error: 'La dirección corresponde a otra sede de entrega',
+        details: {
+          requestedHeadquarterId,
+          matchedHeadquarterId: resolvedHeadquarterId,
+          matchedDeliveryZoneId: matchedDeliveryZone?.id ?? null,
+        },
+      });
     }
 
     if (type !== 'delivery' && (delivery_address || delivery_date || delivery_latitude !== undefined || delivery_longitude !== undefined)) {
@@ -222,7 +310,7 @@ class OrderController {
       const table = await Table.findByPk(tableId);
       if (!table) return res.status(404).json({ error: 'Mesa no encontrada' });
       if (table.storeId !== storeId) return res.status(403).json({ error: 'Mesa no pertenece a esta tienda' });
-      if (table.headquarterId !== normalizedHeadquarterId) {
+      if (table.headquarterId !== resolvedHeadquarterId) {
         return res.status(400).json({ error: 'La mesa no pertenece a la sede seleccionada' });
       }
     }
@@ -254,7 +342,7 @@ class OrderController {
 
       totalAmount += parsedProductPrice * item.quantity;
       itemsData.push({
-        headquarterId: normalizedHeadquarterId,
+        headquarterId: resolvedHeadquarterId,
         productId: item.productId,
         quantity: item.quantity,
         price: parsedProductPrice,
@@ -270,9 +358,11 @@ class OrderController {
         deliveryZoneId: matchedDeliveryZone?.id ?? null,
         delivery_address: type === 'delivery' ? delivery_address : null,
         delivery_date: type === 'delivery' ? delivery_date : null,
-        delivery_latitude: type === 'delivery' ? Number(delivery_latitude) : null,
-        delivery_longitude: type === 'delivery' ? Number(delivery_longitude) : null,
-        headquarterId: normalizedHeadquarterId,
+        delivery_latitude: type === 'delivery' ? parsedDeliveryLatitude : null,
+        delivery_longitude: type === 'delivery' ? parsedDeliveryLongitude : null,
+        scheduled_date: normalizedScheduledDate.value,
+        scheduled_time: normalizedScheduledTime.value,
+        headquarterId: resolvedHeadquarterId,
         order_number,
         status: 'pending',
         statusId: 1,
@@ -299,7 +389,7 @@ class OrderController {
     try {
       await NotificationService.notifyOrderCreatedWithPersistence(
         storeId,
-        normalizedHeadquarterId,
+        resolvedHeadquarterId,
         orderWithItems
       );
     } catch (notificationErr) {

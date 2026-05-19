@@ -74,6 +74,14 @@ const router = express.Router();
  *                 type: string
  *                 format: date-time
  *                 description: Fecha estimada de entrega
+ *               scheduled_date:
+ *                 type: string
+ *                 format: date
+ *                 description: Fecha solicitada para entrega/retiro
+ *               scheduled_time:
+ *                 type: string
+ *                 example: "19:30"
+ *                 description: Horario solicitado para entrega/retiro (HH:mm o HH:mm:ss)
  *     responses:
  *       201:
  *         description: Orden creada exitosamente

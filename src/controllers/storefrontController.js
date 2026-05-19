@@ -3,6 +3,7 @@ import sequelize from '../models/db.js';
 import {
   Category,
   Customer,
+  DeliveryZone,
   Headquarter,
   Order,
   OrderItem,
@@ -112,6 +113,97 @@ function mapStoreOrderType(rawType) {
   if (normalizedType === 'pickup') return 'takeaway';
   if (normalizedType === 'takeaway') return 'takeaway';
   return null;
+}
+
+function isValueProvided(value) {
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function normalizeDateValue(value) {
+  if (!isValueProvided(value)) return { value: null };
+
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return { value: raw };
+  }
+
+  const parsedDate = new Date(raw);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return { error: 'La fecha solicitada no es válida' };
+  }
+
+  return { value: parsedDate.toISOString().slice(0, 10) };
+}
+
+function normalizeTimeValue(value) {
+  if (!isValueProvided(value)) return { value: null };
+
+  const raw = String(value).trim();
+  const timeMatch = raw.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  if (!timeMatch) {
+    return { error: 'La hora solicitada debe tener formato HH:mm o HH:mm:ss' };
+  }
+
+  const [, hours, minutes, seconds = '00'] = timeMatch;
+  return { value: `${hours}:${minutes}:${seconds}` };
+}
+
+function normalizePolygon(polygon) {
+  if (!polygon) return null;
+
+  let rawPolygon = polygon;
+
+  if (typeof rawPolygon === 'string') {
+    try {
+      rawPolygon = JSON.parse(rawPolygon);
+    } catch {
+      return null;
+    }
+  }
+
+  if (Array.isArray(rawPolygon) && rawPolygon[0]?.lat !== undefined && rawPolygon[0]?.lng !== undefined) {
+    return rawPolygon.map((point) => [Number(point.lng), Number(point.lat)]);
+  }
+
+  if (Array.isArray(rawPolygon) && Array.isArray(rawPolygon[0])) {
+    return rawPolygon;
+  }
+
+  if (rawPolygon?.type === 'Polygon') {
+    return rawPolygon.coordinates?.[0] || null;
+  }
+
+  if (rawPolygon?.type === 'Feature' && rawPolygon.geometry?.type === 'Polygon') {
+    return rawPolygon.geometry.coordinates?.[0] || null;
+  }
+
+  return null;
+}
+
+function isPointInPolygon(lat, lon, polygon) {
+  const coordinates = normalizePolygon(polygon);
+
+  if (!Array.isArray(coordinates) || coordinates.length < 3) {
+    return false;
+  }
+
+  let inside = false;
+  for (let i = 0, j = coordinates.length - 1; i < coordinates.length; j = i++) {
+    const [xi, yi] = coordinates[i];
+    const [xj, yj] = coordinates[j];
+
+    const xiEqual = Math.abs(xi - lon) < 0.0000001;
+    const xjEqual = Math.abs(xj - lon) < 0.0000001;
+    if (xiEqual && xjEqual && Math.min(yi, yj) <= lat && lat <= Math.max(yi, yj)) {
+      return true;
+    }
+
+    if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
 }
 
 class StorefrontController {
@@ -338,6 +430,30 @@ class StorefrontController {
       const phone = req.body.phone ?? req.body.customerPhone;
       const type = mapStoreOrderType(req.body.type);
       const address = req.body.address ?? req.body.delivery_address;
+      const rawDeliveryLatitude = req.body.delivery_latitude
+        ?? req.body.deliveryLatitude
+        ?? req.body.latitude
+        ?? req.body.lat;
+      const rawDeliveryLongitude = req.body.delivery_longitude
+        ?? req.body.deliveryLongitude
+        ?? req.body.longitude
+        ?? req.body.lng;
+      const requestedDateRaw = req.body.scheduled_date
+        ?? req.body.scheduledDate
+        ?? req.body.requested_date
+        ?? req.body.requestedDate
+        ?? req.body.delivery_date
+        ?? req.body.deliveryDate
+        ?? req.body.pickup_date
+        ?? req.body.pickupDate;
+      const requestedTimeRaw = req.body.scheduled_time
+        ?? req.body.scheduledTime
+        ?? req.body.requested_time
+        ?? req.body.requestedTime
+        ?? req.body.delivery_time
+        ?? req.body.deliveryTime
+        ?? req.body.pickup_time
+        ?? req.body.pickupTime;
       const requestedHeadquarterId = req.body.headquarterId
         ?? req.body.headquarter_id
         ?? req.body.pickupHeadquarterId
@@ -348,6 +464,53 @@ class StorefrontController {
       if (!type) return res.status(400).json({ error: 'type debe ser delivery o pickup' });
       if (type === 'delivery' && !address) {
         return res.status(400).json({ error: 'address es requerido para órdenes delivery' });
+      }
+
+      let parsedDeliveryLatitude = null;
+      let parsedDeliveryLongitude = null;
+      let matchedDeliveryZone = null;
+      if (type === 'delivery') {
+        if (rawDeliveryLatitude === undefined || rawDeliveryLongitude === undefined) {
+          return res.status(400).json({
+            error: 'delivery_latitude y delivery_longitude son requeridos para validar la zona de entrega',
+          });
+        }
+
+        parsedDeliveryLatitude = Number(rawDeliveryLatitude);
+        parsedDeliveryLongitude = Number(rawDeliveryLongitude);
+        if (!Number.isFinite(parsedDeliveryLatitude) || !Number.isFinite(parsedDeliveryLongitude)) {
+          return res.status(400).json({ error: 'delivery_latitude y delivery_longitude deben ser números válidos' });
+        }
+
+        const deliveryZones = await DeliveryZone.findAll({
+          where: { storeId: store.id, statusId: ACTIVE_STATUS_ID },
+          order: [['id', 'ASC']],
+        });
+
+        matchedDeliveryZone = deliveryZones.find((zone) =>
+          isPointInPolygon(parsedDeliveryLatitude, parsedDeliveryLongitude, zone.polygon)
+        ) ?? null;
+
+        if (!matchedDeliveryZone) {
+          return res.status(400).json({
+            error: 'La dirección está fuera de las zonas de entrega disponibles',
+            details: { latitude: parsedDeliveryLatitude, longitude: parsedDeliveryLongitude },
+          });
+        }
+      }
+
+      const normalizedDate = normalizeDateValue(requestedDateRaw);
+      if (normalizedDate.error) {
+        return res.status(400).json({ error: normalizedDate.error });
+      }
+
+      const normalizedTime = normalizeTimeValue(requestedTimeRaw);
+      if (normalizedTime.error) {
+        return res.status(400).json({ error: normalizedTime.error });
+      }
+
+      if ((isValueProvided(requestedDateRaw) && !normalizedDate.value) || (!isValueProvided(requestedDateRaw) && normalizedTime.value)) {
+        return res.status(400).json({ error: 'Si envías hora solicitada, también debes enviar la fecha solicitada' });
       }
 
       const rawItems = buildOrderItemsFromRequest(req.body);
@@ -365,11 +528,16 @@ class StorefrontController {
         return res.status(400).json({ error: 'La tienda no tiene sedes activas disponibles' });
       }
 
-      let headquarterId = requestedHeadquarterId
-        ? toPositiveInteger(requestedHeadquarterId)
-        : toPositiveInteger(headquarters[0].id);
-      if (!headquarterId) {
-        return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
+      let headquarterId = null;
+      if (type === 'delivery') {
+        headquarterId = toPositiveInteger(matchedDeliveryZone?.headquarterId);
+      } else {
+        headquarterId = requestedHeadquarterId
+          ? toPositiveInteger(requestedHeadquarterId)
+          : toPositiveInteger(headquarters[0].id);
+        if (!headquarterId) {
+          return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
+        }
       }
 
       const headquarter = headquarters.find(
@@ -377,6 +545,23 @@ class StorefrontController {
       );
       if (!headquarter) {
         return res.status(404).json({ error: 'Sede no encontrada para esta tienda' });
+      }
+
+      if (type === 'delivery' && requestedHeadquarterId) {
+        const parsedRequestedHeadquarterId = toPositiveInteger(requestedHeadquarterId);
+        if (!parsedRequestedHeadquarterId) {
+          return res.status(400).json({ error: 'headquarterId debe ser un entero válido' });
+        }
+        if (parsedRequestedHeadquarterId !== headquarterId) {
+          return res.status(400).json({
+            error: 'La dirección corresponde a otra sede de entrega',
+            details: {
+              requestedHeadquarterId: parsedRequestedHeadquarterId,
+              matchedHeadquarterId: headquarterId,
+              matchedDeliveryZoneId: matchedDeliveryZone?.id ?? null,
+            },
+          });
+        }
       }
 
       const productIds = requestedItems.map((item) => item.productId);
@@ -416,6 +601,12 @@ class StorefrontController {
       });
 
       if (outOfHeadquarterProduct) {
+        if (type === 'delivery') {
+          return res.status(400).json({
+            error: `El producto ${outOfHeadquarterProduct.productId} no pertenece a la sede de la zona de entrega`,
+          });
+        }
+
         if (productHeadquarterIds.length === 1) {
           headquarterId = productHeadquarterIds[0];
         } else {
@@ -456,6 +647,9 @@ class StorefrontController {
 
       totalAmount = Number(totalAmount.toFixed(2));
       const orderNumber = `PUB-${Date.now()}-${store.id}`;
+      const deliveryDateTime = type === 'delivery' && normalizedDate.value
+        ? new Date(`${normalizedDate.value}T${normalizedTime.value || '00:00:00'}`)
+        : null;
 
       const createdOrder = await sequelize.transaction(async (transaction) => {
         const order = await Order.create({
@@ -465,6 +659,12 @@ class StorefrontController {
           status: 'pending',
           statusId: ACTIVE_STATUS_ID,
           delivery_address: type === 'delivery' ? String(address).trim() : null,
+          delivery_date: deliveryDateTime,
+          delivery_latitude: type === 'delivery' ? parsedDeliveryLatitude : null,
+          delivery_longitude: type === 'delivery' ? parsedDeliveryLongitude : null,
+          deliveryZoneId: matchedDeliveryZone?.id ?? null,
+          scheduled_date: normalizedDate.value,
+          scheduled_time: normalizedTime.value,
           storeId: store.id,
           headquarterId,
           customerId: customer.id,
