@@ -101,7 +101,7 @@ app.use(`/${version}/contact`, authOptional, contactRoutes);
 
 // Rutas protegidas (requieren autenticación válida)
 app.use(`/${version}/order`, authRequired, orderRoutes);
-app.use(`/${version}/delivery-zone`, authRequired, deliveryZoneRoutes);
+app.use(`/${version}/delivery-zone`, authOptional, deliveryZoneRoutes);
 app.use(`/${version}/localities`, authRequired, localitiesRoutes);
 app.use(`/${version}/subscription`, authRequired, subscriptionRoutes);
 app.use(`/${version}/table`, authRequired, tableRoutes);

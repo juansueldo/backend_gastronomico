@@ -119,7 +119,10 @@ class DeliveryZoneController {
    */
   static async getByStore(req, res) {
     try {
-      const storeId = req.user?.storeId;
+      const storeId =
+      req.user?.storeId ||
+      req.query.storeId ||
+      req.query.store_id;
       if (!storeId) {
         return res.status(401).json({ error: 'storeId no encontrado en el token' });
       }
