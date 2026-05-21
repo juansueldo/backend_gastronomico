@@ -1,7 +1,7 @@
 
 import bcrypt from 'bcrypt';
 
-import { Store, User, Role, Headquarter, sequelize } from '../models/index.js';
+import { Store, User, Role, Headquarter, Subscription, Plan, Status, sequelize } from '../models/index.js';
 import { generateToken } from '../middleware/token.js';
 
 class AuthController {
@@ -157,14 +157,36 @@ class AuthController {
         if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
         const token = await generateToken(user);
         const role = await Role.findOne({ where: { id: user.roleId } });
+        const store = user.storeId ? await Store.findOne({ where: { id: user.storeId } }) : null;
+        const subscription = user.storeId
+          ? await Subscription.findOne({
+              where: { storeId: user.storeId, statusId: 1 },
+              include: [
+                { model: Plan, attributes: ['id', 'name', 'description', 'isFree', 'billingCycleId'] },
+                { model: Status, attributes: ['id', 'name'] },
+              ],
+              order: [['createdAt', 'DESC']],
+            })
+          : null;
         const userData = { 
             id: user.id, 
             firstname: user.firstname, 
             lastname: user.lastname, 
             email: user.email, 
             customerId: user.customerId,
+            storeId: user.storeId,
+            headquarterId: user.headquarterId,
             roleId: user.roleId,
-            role: role.name,
+            role: role?.name,
+            store: store ? {
+              id: store.id,
+              name: store.name,
+              slug: store.slug,
+              profile_image_url: store.profile_image_url,
+              profileImageUrl: store.profile_image_url
+            } : null,
+            subscription,
+            hasSubscription: Boolean(subscription),
             token: token
         };
         res.json({ message: 'Login successful', user: userData });

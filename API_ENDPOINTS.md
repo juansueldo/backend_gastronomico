@@ -1,409 +1,268 @@
-# 📚 API Endpoints Documentation
+# API Endpoints
 
-Documentación completa de todos los endpoints disponibles en la API Gastronómico.
+Documentacion de referencia para la API Gastronomico.
 
-## 🔐 Autenticación
+La fuente tecnica principal es OpenAPI 3.0:
 
-Todos los endpoints protegidos requieren un JWT token en el header:
-```
+- Swagger UI: `GET /docs`
+- OpenAPI JSON: `GET /openapi.json`
+- Swagger-compatible JSON: `GET /swagger.json`
+
+Base URL local por defecto: `http://localhost:3000/v1`
+
+Los endpoints protegidos requieren:
+
+```http
 Authorization: Bearer <token>
 ```
 
-El token se obtiene al hacer login y contiene: `{id, email, storeId, roleId, username}`
-
----
-
-## 📋 Endpoints por Categoría
-
-### 🔑 Auth
-- **POST** `/auth/register` - Registrar nuevo usuario y tienda
-  - Body: `{storename, slug, timezone, location, firstname, lastname, username, email, password}`
-  - Response: `{store, user, token}`
-
-- **POST** `/auth/login` - Iniciar sesión
-  - Body: `{username, password}`
-  - Response: `{message, user, token}`
-
----
-
-### 🍽️ Order (Órdenes)
-- **POST** `/order` - Crear una nueva orden ⭐ Protegido
-  - Validación automática de zonas de entrega si es delivery
-  - Cálculo automático de totales
-  - Body: `{customerId, orderType, items[], totalPrice, deliveryAddress?, deliveryCoordinates?}`
-
-- **GET** `/order` - Obtener órdenes de la tienda ⭐ Protegido
-  - Filtra automáticamente por storeId
-  - Parámetros: `page, limit, status`
-
-- **GET** `/order/{id}` - Obtener detalle de una orden ⭐ Protegido
-
-- **PATCH** `/order/{id}` - Actualizar orden ⭐ Protegido
-
-- **PATCH** `/order/{id}/status` - Cambiar estado de orden ⭐ Protegido
-  - Body: `{status: "pending|confirmed|preparing|ready|delivered|cancelled"}`
-
-- **DELETE** `/order/{id}` - Eliminar orden ⭐ Protegido
-
----
-
-### 👥 Customer (Clientes)
-- **POST** `/customer` - Crear nuevo cliente ⭐ Protegido
-  - Body: `{firstname, lastname, phone, email, metadata}`
-  - storeId se toma automáticamente del token
-
-- **GET** `/customer` - Obtener todos los clientes ⭐ Protegido
-  - Filtra automáticamente por storeId
-  - Parámetros: `page, limit`
-
-- **GET** `/customer/{id}` - Obtener detalle de cliente ⭐ Protegido
-
-- **PATCH** `/customer/{id}` - Actualizar cliente ⭐ Protegido
-
-- **DELETE** `/customer/{id}` - Eliminar cliente ⭐ Protegido
-
----
-
-### 📞 Contact (Contactos de Clientes)
-- **POST** `/contact` - Crear contacto para cliente ⭐ Protegido
-  - Body: `{customerId, instanceId, identifier (phone/email)}`
-  - Valida que customer e instance pertenezcan a la misma tienda
-
-- **GET** `/contact` - Obtener todos los contactos ⭐ Protegido
-  - Filtra por storeId
-
-- **GET** `/contact/{id}` - Obtener detalle de contacto ⭐ Protegido
-
-- **GET** `/contact/customer/{customerId}` - Obtener contactos de un cliente
-
-- **PATCH** `/contact/{id}` - Actualizar contacto ⭐ Protegido
-
-- **DELETE** `/contact/{id}` - Eliminar contacto ⭐ Protegido
-
----
-
-### 🚗 DeliveryZone (Zonas de Entrega)
-- **POST** `/delivery-zone` - Crear zona de entrega ⭐ Protegido
-  - Body: `{name, polygon (GeoJSON), status}`
-  - Usa PostGIS para geometría
-
-- **GET** `/delivery-zone` - Obtener zonas ⭐ Protegido
-
-- **GET** `/delivery-zone/{id}` - Obtener detalle ⭐ Protegido
-
-- **GET** `/delivery-zone/point/{lat}/{lon}` - Validar si punto está en zona
-
-- **PATCH** `/delivery-zone/{id}` - Actualizar zona ⭐ Protegido
-
-- **DELETE** `/delivery-zone/{id}` - Eliminar zona ⭐ Protegido
-
----
-
-### 📡 Instance (Canales de Comunicación)
-- **POST** `/instance` - Crear instancia de canal ⭐ Protegido
-  - Body: `{networkId, name, identifier, credentials, metadata}`
-  - Ejemplo: WhatsApp, Email, Telegram, SMS
-
-- **GET** `/instance` - Obtener todas las instancias ⭐ Protegido
-
-- **GET** `/instance/{id}` - Obtener detalle ⭐ Protegido
-
-- **PATCH** `/instance/{id}` - Actualizar instancia ⭐ Protegido
-
-- **DELETE** `/instance/{id}` - Eliminar instancia ⭐ Protegido
-
----
-
-### 🌐 Network (Redes de Comunicación)
-- **POST** `/network` - Crear red de comunicación ⭐ Protegido
-  - Body: `{name, slug, type (whatsapp|email|telegram|sms|social), icon}`
-
-- **GET** `/network` - Obtener todas las redes (Público)
-
-- **GET** `/network/{id}` - Obtener detalle
-
-- **PATCH** `/network/{id}` - Actualizar red ⭐ Protegido
-
-- **DELETE** `/network/{id}` - Eliminar red ⭐ Protegido
-
----
-
-### 📋 Role (Roles de Usuario)
-- **POST** `/role` - Crear rol ⭐ Protegido
-  - Body: `{name, slug, description}`
-
-- **GET** `/role` - Obtener todos los roles (Público)
-
-- **GET** `/role/{id}` - Obtener detalle
-
-- **PATCH** `/role/{id}` - Actualizar rol ⭐ Protegido
-
-- **DELETE** `/role/{id}` - Eliminar rol ⭐ Protegido
-
----
-
-### ✅ Status (Estados del Sistema)
-- **POST** `/status` - Crear estado ⭐ Protegido
-  - Body: `{name, slug, description, type}`
-
-- **GET** `/status` - Obtener todos los estados (Público)
-
-- **GET** `/status/{id}` - Obtener detalle
-
-- **PATCH** `/status/{id}` - Actualizar estado ⭐ Protegido
-
-- **DELETE** `/status/{id}` - Eliminar estado ⭐ Protegido
-
----
-
-### 💳 Plan (Planes de Suscripción)
-- **POST** `/plan` - Crear plan ⭐ Protegido
-  - Body: `{name, slug, description, price, billingCycle}`
-
-- **GET** `/plan` - Obtener todos los planes (Público)
-
-- **GET** `/plan/{id}` - Obtener detalle
-
-- **PATCH** `/plan/{id}` - Actualizar plan ⭐ Protegido
-
-- **PATCH** `/plan/{id}/status` - Cambiar estado ⭐ Protegido
-
-- **DELETE** `/plan/{id}` - Eliminar plan ⭐ Protegido
-
----
-
-### 💰 PlanPrice (Precios de Planes - Multi-moneda)
-- **POST** `/plan-price` - Crear precio para un plan ⭐ Protegido
-  - Body: `{planId, price, currency}`
-  - Soporta múltiples monedas por plan (USD, EUR, UYU, ARS, etc.)
-
-- **GET** `/plan-price` - Obtener todos los precios (Público)
-
-- **GET** `/plan-price/{id}` - Obtener detalle de un precio
-
-- **GET** `/plan-price/plan/{planId}` - Obtener precios de un plan específico
-
-- **PATCH** `/plan-price/{id}` - Actualizar precio ⭐ Protegido
-
-- **PATCH** `/plan-price/{id}/status` - Cambiar estado ⭐ Protegido
-
-- **DELETE** `/plan-price/{id}` - Eliminar precio ⭐ Protegido
-
----
-
-### ⭐ PlanFeatures (Características de Planes)
-- **POST** `/plan-features` - Crear característica ⭐ Protegido
-  - Body: `{planId, name, slug, description, value}`
-
-- **GET** `/plan-features/plan/{planId}` - Obtener características de un plan (Público)
-
-- **GET** `/plan-features/{id}` - Obtener detalle
-
-- **PATCH** `/plan-features/{id}` - Actualizar característica ⭐ Protegido
-
-- **PATCH** `/plan-features/{id}/status` - Cambiar estado ⭐ Protegido
-
-- **DELETE** `/plan-features/{id}` - Eliminar característica ⭐ Protegido
-
----
-
-### 📅 BillingCycle (Ciclos de Facturación)
-- **POST** `/billing-cycle` - Crear ciclo ⭐ Protegido
-  - Body: `{name, slug, days, description}`
-  - Ejemplo: {name: "Mensual", slug: "monthly", days: 30}
-
-- **GET** `/billing-cycle` - Obtener todos los ciclos (Público)
-
-- **GET** `/billing-cycle/{id}` - Obtener detalle
-
-- **PATCH** `/billing-cycle/{id}` - Actualizar ciclo ⭐ Protegido
-
-- **PATCH** `/billing-cycle/{id}/status` - Cambiar estado ⭐ Protegido
-
-- **DELETE** `/billing-cycle/{id}` - Eliminar ciclo ⭐ Protegido
-
----
-
-## 🔒 Matiz de Protección
-
-### ⭐ Protegido (authRequired)
-Requiere JWT válido en header `Authorization: Bearer <token>`
-
-**Endpoints protegidos:**
-- Todas las mutaciones (POST, PATCH, DELETE)
-- Order: Todos los métodos
-- DeliveryZone: Todos los métodos
-- Customer: Todos los métodos
-- Contact: Todos los métodos
-- Instance: Todos los métodos
-
-### 📖 Públicos (GET)
-Los endpoints GET de Role, Status, Network, Plan, BillingCycle, PlanFeatures son públicos para consultas de información estática.
-
-### 🔓 Públicos Completos
-- `/auth/register` - Registración pública
-- `/auth/login` - Login público
-
----
-
-## 📊 Response Format
-
-### Éxito (2xx)
-```json
-{
-  "id": 1,
-  "name": "...",
-  "createdAt": "2024-01-01T00:00:00Z"
-}
-```
-
-### Error (4xx/5xx)
-```json
-{
-  "error": "Descrición del error"
-}
-```
-
----
-
-## 🚀 Uso Común
-
-### 1. Registro y Login
-```bash
-# Registrarse
-POST /auth/register
-{
-  "storename": "Mi Restaurante",
-  "slug": "mi-restaurante",
-  "firstname": "Juan",
-  "lastname": "Pérez",
-  "username": "juan",
-  "email": "juan@example.com",
-  "password": "secure123"
-}
-
-# Login
-POST /auth/login
-{
-  "username": "juan",
-  "password": "secure123"
-}
-# Response incluye token JWT
-```
-
-### 2. Crear Orden
-```bash
-POST /order
-Authorization: Bearer <token>
-{
-  "customerId": 1,
-  "orderType": "delivery",
-  "items": [
-    {"productId": 1, "quantity": 2, "price": 15.50}
-  ],
-  "totalPrice": 31.00,
-  "deliveryAddress": "Calle Principal 123",
-  "deliveryCoordinates": [-56.1629, -34.9011]
-}
-```
-
-### 3. Configurar Instancia WhatsApp
-```bash
-POST /instance
-Authorization: Bearer <token>
-{
-  "networkId": 1,
-  "name": "WhatsApp Ventas",
-  "identifier": "+598912345678",
-  "credentials": {
-    "token": "xxx",
-    "secret": "yyy"
-  }
-}
-```
-
-### 4. Crear Plan con Precios Multi-moneda
-```bash
-# Crear plan
-POST /plan
-Authorization: Bearer <token>
-{
-  "name": "Plan Pro",
-  "slug": "plan-pro",
-  "description": "Plan profesional",
-  "billingCycle": "monthly"
-}
-
-# Agregar precio en USD
-POST /plan-price
-Authorization: Bearer <token>
-{
-  "planId": 1,
-  "price": 99.99,
-  "currency": "USD"
-}
-
-# Agregar precio en UYU
-POST /plan-price
-Authorization: Bearer <token>
-{
-  "planId": 1,
-  "price": 3500.00,
-  "currency": "UYU"
-}
-
-# Agregar característica al plan
-POST /plan-features
-Authorization: Bearer <token>
-{
-  "planId": 1,
-  "feature": "API Calls",
-  "description": "Llamadas API ilimitadas",
-  "key": "api_calls",
-  "value": "unlimited"
-}
-```
-
-### 5. Crear Suscripción
-```bash
-POST /subscription
-Authorization: Bearer <token>
-{
-  "planId": 1,
-  "billingCycleId": 1
-}
-
-# Actualizar estado de pago
-PATCH /subscription/1/payment
-Authorization: Bearer <token>
-{
-  "payment": 1
-}
-```
-
----
-
-## ⚠️ Notas Importantes
-
-1. **storeId automático**: Se obtiene del token JWT, no necesita incluirse en el body
-2. **Multi-tenant**: Todos los datos se filtran automáticamente por storeId del usuario
-3. **PostGIS**: Las zonas de entrega usan geometría espacial (POLYGON)
-4. **Tokens**: Expiran en 24 horas, se renuevan con nuevo login
-5. **Validación**: Se validan relaciones entre entidades (customer→store, instance→store)
-6. **Multi-moneda**: Soporta múltiples monedas por plan (USD, EUR, UYU, ARS, BRL, etc.)
-
----
-
-## 📚 Acceder a Swagger UI
-
-Mientras el servidor esté corriendo:
-```
-http://localhost:3000/docs
-```
-
-Todos los endpoints están documentados con ejemplos de request/response.
-
----
-
-**Última actualización**: 2024
-**Versión API**: 1.0.0
+El token se obtiene en `POST /v1/auth/login`.
+
+## Auth
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/auth/register` | Publico | Registrar usuario y tienda |
+| POST | `/v1/auth/login` | Publico | Iniciar sesion |
+
+## Store
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| PATCH | `/v1/store/profile-image` | Requerida | Actualizar imagen de perfil de la tienda |
+| GET | `/v1/store/{slug}` | Publico | Consultar tienda publica |
+| GET | `/v1/store/{slug}/products` | Publico | Listar productos de una tienda publica |
+| POST | `/v1/store/{slug}/orders` | Publico | Crear orden desde tienda publica |
+
+## Status
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/status` | Requerida | Crear estado |
+| GET | `/v1/status` | Opcional | Listar estados |
+| GET | `/v1/status/{id}` | Opcional | Consultar estado |
+| PATCH | `/v1/status/{id}` | Requerida | Actualizar estado |
+| DELETE | `/v1/status/{id}` | Requerida | Eliminar estado |
+
+## Role
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/role` | Requerida | Crear rol |
+| GET | `/v1/role` | Opcional | Listar roles |
+| GET | `/v1/role/{id}` | Opcional | Consultar rol |
+| PATCH | `/v1/role/{id}` | Requerida | Actualizar rol |
+| DELETE | `/v1/role/{id}` | Requerida | Eliminar rol |
+
+## Network
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/network` | Requerida | Crear red |
+| GET | `/v1/network` | Opcional | Listar redes |
+| GET | `/v1/network/{id}` | Opcional | Consultar red |
+| PATCH | `/v1/network/{id}` | Requerida | Actualizar red |
+| DELETE | `/v1/network/{id}` | Requerida | Eliminar red |
+
+## Plan
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/plan` | Requerida | Crear plan |
+| GET | `/v1/plan` | Opcional | Listar planes |
+| GET | `/v1/plan/{id}` | Opcional | Consultar plan |
+| PATCH | `/v1/plan/{id}` | Requerida | Actualizar plan |
+| PATCH | `/v1/plan/{id}/status` | Requerida | Cambiar estado de plan |
+| DELETE | `/v1/plan/{id}` | Requerida | Eliminar plan |
+
+## PlanPrice
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/plan-price` | Requerida | Crear precio de plan |
+| GET | `/v1/plan-price` | Opcional | Listar precios |
+| GET | `/v1/plan-price/plan/{planId}` | Opcional | Listar precios de un plan |
+| GET | `/v1/plan-price/{id}` | Opcional | Consultar precio |
+| PATCH | `/v1/plan-price/{id}` | Requerida | Actualizar precio |
+| PATCH | `/v1/plan-price/{id}/status` | Requerida | Cambiar estado de precio |
+| DELETE | `/v1/plan-price/{id}` | Requerida | Eliminar precio |
+
+## PlanFeatures
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/plan-features` | Requerida | Crear caracteristica de plan |
+| GET | `/v1/plan-features/plan/{planId}` | Opcional | Listar caracteristicas de un plan |
+| GET | `/v1/plan-features/{id}` | Opcional | Consultar caracteristica |
+| PATCH | `/v1/plan-features/{id}` | Requerida | Actualizar caracteristica |
+| PATCH | `/v1/plan-features/{id}/status` | Requerida | Cambiar estado de caracteristica |
+| DELETE | `/v1/plan-features/{id}` | Requerida | Eliminar caracteristica |
+
+## BillingCycle
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/billing-cycle` | Requerida | Crear ciclo de facturacion |
+| GET | `/v1/billing-cycle` | Opcional | Listar ciclos |
+| GET | `/v1/billing-cycle/{id}` | Opcional | Consultar ciclo |
+| PATCH | `/v1/billing-cycle/{id}` | Requerida | Actualizar ciclo |
+| PATCH | `/v1/billing-cycle/{id}/status` | Requerida | Cambiar estado de ciclo |
+| DELETE | `/v1/billing-cycle/{id}` | Requerida | Eliminar ciclo |
+
+## Instance
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/instance` | Requerida | Crear instancia |
+| GET | `/v1/instance` | Requerida | Listar instancias |
+| GET | `/v1/instance/{id}` | Requerida | Consultar instancia |
+| PATCH | `/v1/instance/{id}` | Requerida | Actualizar instancia |
+| DELETE | `/v1/instance/{id}` | Requerida | Eliminar instancia |
+
+## Customer
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| GET | `/v1/customer/search` | Requerida | Buscar clientes |
+| POST | `/v1/customer` | Requerida | Crear cliente |
+| GET | `/v1/customer` | Requerida | Listar clientes |
+| GET | `/v1/customer/{id}` | Requerida | Consultar cliente |
+| PATCH | `/v1/customer/{id}` | Requerida | Actualizar cliente |
+| DELETE | `/v1/customer/{id}` | Requerida | Eliminar cliente |
+
+## Contact
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/contact` | Opcional | Crear contacto |
+| GET | `/v1/contact/customer/{customerId}` | Opcional | Listar contactos por cliente |
+| GET | `/v1/contact/instance/{instanceId}` | Opcional | Listar contactos por instancia |
+| GET | `/v1/contact/{id}` | Opcional | Consultar contacto |
+| PATCH | `/v1/contact/{id}` | Opcional | Actualizar contacto |
+| PATCH | `/v1/contact/{id}/status` | Opcional | Cambiar estado de contacto |
+| DELETE | `/v1/contact/{id}` | Opcional | Eliminar contacto |
+
+## Order
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/order` | Requerida | Crear orden |
+| GET | `/v1/order` | Requerida | Listar ordenes |
+| GET | `/v1/order/{id}` | Requerida | Consultar orden |
+| PATCH | `/v1/order/{id}/status` | Requerida | Cambiar estado de orden |
+| PATCH | `/v1/order/{id}/production` | Requerida | Marcar orden en produccion |
+| PATCH | `/v1/order/{id}/ready` | Requerida | Marcar orden lista |
+| PATCH | `/v1/order/{id}/finalize` | Requerida | Finalizar orden |
+| DELETE | `/v1/order/{id}` | Requerida | Eliminar orden |
+
+## DeliveryZone
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/delivery-zone` | Opcional | Crear zona de entrega |
+| GET | `/v1/delivery-zone` | Opcional | Listar zonas |
+| POST | `/v1/delivery-zone/check` | Opcional | Validar cobertura |
+| GET | `/v1/delivery-zone/{id}` | Opcional | Consultar zona |
+| PATCH | `/v1/delivery-zone/{id}` | Opcional | Actualizar zona |
+| PATCH | `/v1/delivery-zone/{id}/status` | Opcional | Cambiar estado de zona |
+| DELETE | `/v1/delivery-zone/{id}` | Opcional | Eliminar zona |
+
+## Locality
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| GET | `/v1/localities` | Requerida | Listar localidades |
+
+## Subscription
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/subscription` | Requerida | Crear suscripcion |
+| GET | `/v1/subscription` | Requerida | Listar suscripciones |
+| GET | `/v1/subscription/{id}` | Requerida | Consultar suscripcion |
+| PATCH | `/v1/subscription/{id}` | Requerida | Actualizar suscripcion |
+| PATCH | `/v1/subscription/{id}/payment` | Requerida | Actualizar pago |
+| PATCH | `/v1/subscription/{id}/status` | Requerida | Cambiar estado de suscripcion |
+| DELETE | `/v1/subscription/{id}` | Requerida | Eliminar suscripcion |
+
+## Table
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/table` | Requerida | Crear mesa |
+| GET | `/v1/table` | Requerida | Listar mesas |
+| GET | `/v1/table/{id}` | Requerida | Consultar mesa |
+| PATCH | `/v1/table/{id}` | Requerida | Actualizar mesa |
+| PATCH | `/v1/table/{id}/status` | Requerida | Cambiar estado de mesa |
+| DELETE | `/v1/table/{id}` | Requerida | Eliminar mesa |
+
+## Waiter
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/waiter` | Requerida | Crear mozo |
+| GET | `/v1/waiter` | Requerida | Listar mozos |
+| GET | `/v1/waiter/{id}` | Requerida | Consultar mozo |
+| PATCH | `/v1/waiter/{id}` | Requerida | Actualizar mozo |
+| PATCH | `/v1/waiter/{id}/status` | Requerida | Cambiar estado de mozo |
+| DELETE | `/v1/waiter/{id}` | Requerida | Eliminar mozo |
+
+## Category
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/category` | Requerida | Crear categoria |
+| GET | `/v1/category` | Requerida | Listar categorias |
+| GET | `/v1/category/{id}` | Requerida | Consultar categoria |
+| PUT | `/v1/category/{id}` | Requerida | Reemplazar categoria |
+
+## Product
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/product` | Requerida | Crear producto |
+| GET | `/v1/product` | Requerida | Listar productos |
+| GET | `/v1/product/{id}` | Requerida | Consultar producto |
+| PATCH | `/v1/product/{id}` | Requerida | Actualizar producto |
+| DELETE | `/v1/product/{id}` | Requerida | Eliminar producto |
+
+## User
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/user` | Requerida | Crear usuario |
+| GET | `/v1/user` | Requerida | Listar usuarios |
+| GET | `/v1/user/{id}` | Requerida | Consultar usuario |
+| PUT | `/v1/user/{id}` | Requerida | Reemplazar usuario |
+
+## Headquarter
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| POST | `/v1/headquarter` | Requerida | Crear sede |
+| GET | `/v1/headquarter` | Requerida | Listar sedes |
+| GET | `/v1/headquarter/{id}` | Requerida | Consultar sede |
+| PUT | `/v1/headquarter/{id}` | Requerida | Reemplazar sede |
+| PUT | `/v1/headquarter/{id}/schedules` | Requerida | Actualizar horarios |
+| GET | `/v1/headquarter/{id}/cash-register` | Requerida | Consultar caja activa |
+| POST | `/v1/headquarter/{id}/cash-register` | Requerida | Abrir caja |
+| POST | `/v1/headquarter/{id}/cash-register/close` | Requerida | Cerrar caja |
+| GET | `/v1/headquarter/{id}/cash-register/periods` | Requerida | Listar periodos de caja |
+
+## Notification
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| GET | `/v1/notifications` | Requerida | Listar notificaciones |
+
+## WebSocket
+
+| Metodo | Endpoint | Auth | Descripcion |
+| --- | --- | --- | --- |
+| GET | `/v1/websocket/status` | Opcional | Consultar estado de integracion websocket |
+
+## Notas
+
+- La especificacion OpenAPI se genera desde las rutas reales y los comentarios Swagger existentes.
+- `swagger.json` y `openapi.json` contienen el mismo documento OpenAPI 3.0 para compatibilidad con herramientas distintas.
+- Ultima actualizacion: 2026-05-21.

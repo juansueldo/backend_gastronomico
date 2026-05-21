@@ -3,6 +3,7 @@ export default function (req, res, next) {
   // Permitir acceso libre a la documentación y archivos estáticos de Swagger
   if (
     req.path === '/docs.html' ||
+    req.path === '/openapi.json' ||
     req.path === '/swagger.json' ||
     req.path.startsWith('/swagger-ui')
   ) {

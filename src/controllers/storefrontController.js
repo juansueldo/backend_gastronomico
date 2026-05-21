@@ -207,6 +207,66 @@ function isPointInPolygon(lat, lon, polygon) {
 }
 
 class StorefrontController {
+  static async updateStoreProfile(req, res) {
+    try {
+      const storeId = req.user?.storeId;
+      const { name, slug, profile_image_url, profileImageUrl } = req.body;
+
+      if (!storeId) {
+        return res.status(401).json({ error: 'storeId no encontrado en el token' });
+      }
+
+      const store = await Store.findByPk(storeId);
+      if (!store) {
+        return res.status(404).json({ error: 'Tienda no encontrada' });
+      }
+
+      const nextName = typeof name === 'string' ? name.trim() : undefined;
+      const nextSlug = typeof slug === 'string' ? slug.trim().toLowerCase() : undefined;
+      const nextProfileImageUrl = typeof (profile_image_url ?? profileImageUrl) === 'string'
+        ? String(profile_image_url ?? profileImageUrl).trim()
+        : undefined;
+
+      if (nextName !== undefined && !nextName) {
+        return res.status(400).json({ error: 'name no puede estar vacío' });
+      }
+
+      if (nextSlug !== undefined && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(nextSlug)) {
+        return res.status(400).json({ error: 'slug debe usar minúsculas, números y guiones' });
+      }
+
+      if (nextName && nextName !== store.name) {
+        const existingName = await Store.findOne({ where: { name: nextName } });
+        if (existingName && existingName.id !== store.id) {
+          return res.status(400).json({ error: 'Ya existe una tienda con ese nombre' });
+        }
+      }
+
+      if (nextSlug && nextSlug !== store.slug) {
+        const existingSlug = await Store.findOne({ where: { slug: nextSlug } });
+        if (existingSlug && existingSlug.id !== store.id) {
+          return res.status(400).json({ error: 'Ya existe una tienda con ese slug' });
+        }
+      }
+
+      await store.update({
+        ...(nextName !== undefined ? { name: nextName } : {}),
+        ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
+        ...(nextProfileImageUrl !== undefined ? { profile_image_url: nextProfileImageUrl || null } : {}),
+      });
+
+      return res.status(200).json({
+        id: store.id,
+        name: store.name,
+        slug: store.slug,
+        profile_image_url: store.profile_image_url,
+        profileImageUrl: store.profile_image_url,
+      });
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
   static async uploadStoreImage(req, res) {
     try {
       const storeId = req.user?.storeId;

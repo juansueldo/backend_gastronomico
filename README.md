@@ -8,13 +8,14 @@ API REST para la gestión de un local gastronómico, desarrollada con Node.js, E
 - Reservas de mesas
 - Órdenes (con opción de delivery o local)
 - Autenticación por Bearer Token y custom header
-- Documentación Swagger en `/api-docs`
+- Documentación Swagger UI en `/docs`
+- Especificaciones OpenAPI/Swagger disponibles en `/openapi.json` y `/swagger.json`
 
 ## Instalación
 1. Clona el repositorio o copia los archivos en tu entorno.
 2. Instala las dependencias:
    ```bash
-   npm install
+   pnpm install
    ```
 3. Renombra `.env.example` a `.env` y completa tus datos de Supabase y credenciales:
    ```env
@@ -44,7 +45,9 @@ Todos los endpoints requieren:
 - `/ordenes` - Gestión de órdenes
 
 Consulta la documentación y prueba los endpoints en:
-- [http://localhost:3000/api-docs](http://localhost:3000/api-docs)
+- [http://localhost:3000/docs](http://localhost:3000/docs)
+- [http://localhost:3000/openapi.json](http://localhost:3000/openapi.json)
+- [http://localhost:3000/swagger.json](http://localhost:3000/swagger.json)
 
 ## Tecnologías
 - Node.js

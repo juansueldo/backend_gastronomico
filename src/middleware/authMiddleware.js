@@ -6,7 +6,12 @@ import { verifyToken, extractToken } from './token.js';
  */
 export const authRequired = (req, res, next) => {
   // Permitir acceso libre a documentación
-  if (req.path === '/docs.html' || req.path === '/swagger.json' || req.path.startsWith('/swagger-ui')) {
+  if (
+    req.path === '/docs.html' ||
+    req.path === '/openapi.json' ||
+    req.path === '/swagger.json' ||
+    req.path.startsWith('/swagger-ui')
+  ) {
     return next();
   }
 

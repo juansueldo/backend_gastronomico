@@ -110,7 +110,7 @@ app.use(`/${version}/category`, authRequired, categoryRoutes);
 app.use(`/${version}/product`, authRequired, productRoutes);
 app.use(`/${version}/user`, authRequired, userRoutes);
 app.use(`/${version}/headquarter`, authRequired, headquarterRoutes);
-app.use(`${version}/notifications`,authRequired, notificationRoutes);
+app.use(`/${version}/notifications`, authRequired, notificationRoutes);
 
 // Rutas WebSocket (status y debugging)
 app.use(`/${version}/websocket`, authOptional, websocketRoutes);

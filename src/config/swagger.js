@@ -1,5 +1,6 @@
 
 import swaggerJSDoc from 'swagger-jsdoc';
+import { buildRouteDocs } from './routeDocs.js';
 
 const version = process.env.API_VERSION || 'v1';
 const renderUrl = process.env.RENDER_EXTERNAL_URL || 'https://backend-gastronomico.onrender.com';
@@ -34,10 +35,27 @@ const options = {
           bearerFormat: 'JWT',
           description: 'JWT token obtenido del endpoint /auth/login'
         }
+      },
+      schemas: {
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            error: {
+              type: 'string',
+              example: 'Descripcion del error'
+            },
+            message: {
+              type: 'string',
+              example: 'Mensaje opcional del error'
+            }
+          },
+          additionalProperties: true
+        }
       }
     },
     tags: [
       { name: 'Auth', description: 'Autenticación y registro' },
+      { name: 'Store', description: 'Storefront público y perfil de tienda' },
       { name: 'Order', description: 'Gestión de órdenes' },
       { name: 'Customer', description: 'Gestión de clientes' },
       { name: 'Contact', description: 'Contactos de clientes' },
@@ -59,6 +77,7 @@ const options = {
       { name: 'User', description: 'Gestión de usuarios internos' },
       { name: 'Headquarter', description: 'Gestión de sedes de la tienda' },
       { name: 'CashRegister', description: 'Gestión de caja por sede' },
+      { name: 'Notification', description: 'Notificaciones internas' },
       { name: 'WebSocket', description: 'Documentación de integración websocket' },
     ]
   },
@@ -66,5 +85,6 @@ const options = {
 };
 
 const swaggerSpec = swaggerJSDoc(options);
+swaggerSpec.paths = buildRouteDocs(swaggerSpec.paths);
 
 export default swaggerSpec;
