@@ -5,6 +5,15 @@ import InventoryConsumptionService from '../services/inventoryConsumptionService
 import { parseLocaleNumber } from '../utils/numberParser.js';
 
 const MAX_PRODUCT_IMAGE_BYTES = Number(process.env.PRODUCT_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
+const VALID_INVENTORY_UNITS = new Set(['unidad', 'kg', 'gr', 'lt', 'ml']);
+
+function normalizeInventoryUnit(unit) {
+    const normalized = String(unit ?? 'unidad').trim().toLowerCase();
+    if (normalized === 'g') return 'gr';
+    if (normalized === 'l') return 'lt';
+    if (VALID_INVENTORY_UNITS.has(normalized)) return normalized;
+    return 'unidad';
+}
 
 function getBase64SizeInBytes(base64String) {
     const cleanBase64 = base64String.includes(',')
@@ -147,12 +156,17 @@ class ProductController {
                 where: { statusId: 1, storeId },
                 include: [
                     { model: Store, attributes: ['id', 'name'] },
-                    { model: Category, attributes: ['id', 'name', 'description'] }
+                    { model: Category, attributes: ['id', 'name', 'description'] },
+                    { model: Recipe, attributes: ['id', 'statusId'], required: false }
                 ],
                 order: [['createdAt', 'DESC']]
             });
 
-            res.status(200).json(products);
+            res.status(200).json(products.map((product) => {
+                const row = product.toJSON();
+                row.usesRecipe = row.type === 'recipe' || Boolean(row.Recipe && row.Recipe.statusId === 1);
+                return row;
+            }));
         } catch (err) {
             res.status(400).json({ error: err.message });
         }
@@ -350,7 +364,7 @@ class ProductController {
                 for (const ingredient of ingredients) {
                     const name = String(ingredient.name ?? '').trim();
                     const quantity = Number(ingredient.quantity);
-                    const unit = String(ingredient.unit ?? 'unidad').trim() || 'unidad';
+                    const unit = normalizeInventoryUnit(ingredient.unit);
                     if (!name || !Number.isFinite(quantity) || quantity <= 0) {
                         throw new Error('Cada ingrediente debe tener nombre y cantidad mayor a 0');
                     }
@@ -521,7 +535,7 @@ class ProductController {
             const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, req.body.headquarterId);
             const item = await InventoryConsumptionService.upsertIngredientStock({
                 name: req.body.name,
-                unit: req.body.unit,
+                unit: normalizeInventoryUnit(req.body.unit),
                 currentStock: req.body.currentStock ?? req.body.stock ?? 0,
                 minStock: req.body.minStock ?? req.body.minimumStock ?? 0,
                 storeId,
