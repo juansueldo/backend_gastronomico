@@ -1,5 +1,7 @@
-import { Product, Category, Store } from "../models/index.js";
+import sequelize from '../models/db.js';
+import { Product, Category, Store, Headquarter, InventoryItem, Recipe, RecipeItem } from "../models/index.js";
 import ImageService from '../services/imageService.js';
+import InventoryConsumptionService from '../services/inventoryConsumptionService.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
 
 const MAX_PRODUCT_IMAGE_BYTES = Number(process.env.PRODUCT_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
@@ -14,6 +16,33 @@ function getBase64SizeInBytes(base64String) {
 }
 
 class ProductController {
+    static async resolveHeadquarterId(storeId, requestedHeadquarterId) {
+        const parsedHeadquarterId = Number(requestedHeadquarterId);
+        if (Number.isInteger(parsedHeadquarterId) && parsedHeadquarterId > 0) {
+            const headquarter = await Headquarter.findOne({ where: { id: parsedHeadquarterId, storeId } });
+            if (!headquarter) throw new Error('Sede no encontrada para esta tienda');
+            return parsedHeadquarterId;
+        }
+
+        const firstHeadquarter = await Headquarter.findOne({ where: { storeId, statusId: 1 }, order: [['id', 'ASC']] });
+        if (!firstHeadquarter) throw new Error('No hay sedes activas para configurar stock');
+        return firstHeadquarter.id;
+    }
+
+    static normalizeRecipeRows(rows) {
+        return rows.map((recipe) => ({
+            productId: String(recipe.productId),
+            usesRecipe: true,
+            ingredients: (recipe.RecipeItems ?? []).map((item) => ({
+                id: String(item.id),
+                inventoryItemId: item.inventoryItemId,
+                name: item.InventoryItem?.name ?? '',
+                quantity: Number(item.quantity),
+                unit: item.InventoryItem?.unit ?? 'unidad',
+            })),
+            updatedAt: recipe.updatedAt,
+        }));
+    }
 
     static async create(req, res) {
         try {
@@ -267,6 +296,265 @@ class ProductController {
             await product.destroy();
 
             res.status(200).json({ message: 'Producto eliminado correctamente' });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async saveRecipe(req, res) {
+        const storeId = req.user?.storeId;
+        if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+
+        try {
+            const { productId, usesRecipe, ingredients = [], headquarterId } = req.body;
+            if (!productId) return res.status(400).json({ error: 'productId es requerido' });
+
+            const product = await Product.findOne({ where: { id: productId, storeId } });
+            if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+
+            const result = await sequelize.transaction(async (transaction) => {
+                if (!usesRecipe) {
+                    const recipe = await Recipe.findOne({ where: { productId: product.id, storeId }, transaction });
+                    if (recipe) await RecipeItem.destroy({ where: { recipeId: recipe.id, storeId }, transaction });
+                    await Recipe.destroy({ where: { productId: product.id, storeId }, transaction });
+                    await product.update({ type: 'simple' }, { transaction });
+                    return {
+                        productId: String(product.id),
+                        usesRecipe: false,
+                        ingredients: [],
+                        updatedAt: new Date().toISOString(),
+                    };
+                }
+
+                if (!Array.isArray(ingredients) || ingredients.length === 0) {
+                    throw new Error('Agregá al menos un ingrediente para la receta');
+                }
+
+                const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, headquarterId);
+                const [recipe] = await Recipe.findOrCreate({
+                    where: { productId: product.id, storeId },
+                    defaults: {
+                        name: `Receta ${product.name}`,
+                        description: null,
+                        productId: product.id,
+                        storeId,
+                        statusId: 1,
+                    },
+                    transaction,
+                });
+
+                await recipe.update({ statusId: 1, name: `Receta ${product.name}` }, { transaction });
+                await RecipeItem.destroy({ where: { recipeId: recipe.id, storeId }, transaction });
+
+                const savedIngredients = [];
+                for (const ingredient of ingredients) {
+                    const name = String(ingredient.name ?? '').trim();
+                    const quantity = Number(ingredient.quantity);
+                    const unit = String(ingredient.unit ?? 'unidad').trim() || 'unidad';
+                    if (!name || !Number.isFinite(quantity) || quantity <= 0) {
+                        throw new Error('Cada ingrediente debe tener nombre y cantidad mayor a 0');
+                    }
+
+                    const inventoryItem = await InventoryConsumptionService.upsertIngredientStock({
+                        name,
+                        unit,
+                        currentStock: ingredient.currentStock ?? ingredient.stock,
+                        minStock: ingredient.minStock ?? ingredient.min_stock,
+                        storeId,
+                        headquarterId: resolvedHeadquarterId,
+                        transaction,
+                    });
+
+                    const recipeItem = await RecipeItem.create({
+                        quantity,
+                        recipeId: recipe.id,
+                        inventoryItemId: inventoryItem.id,
+                        storeId,
+                        statusId: 1,
+                    }, { transaction });
+
+                    savedIngredients.push({
+                        id: String(recipeItem.id),
+                        inventoryItemId: inventoryItem.id,
+                        name: inventoryItem.name,
+                        quantity,
+                        unit: inventoryItem.unit,
+                    });
+                }
+
+                await product.update({ type: 'recipe' }, { transaction });
+
+                return {
+                    productId: String(product.id),
+                    usesRecipe: true,
+                    ingredients: savedIngredients,
+                    updatedAt: new Date().toISOString(),
+                };
+            });
+
+            res.json(result);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async getRecipe(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const productId = req.query.productId;
+            const recipe = await Recipe.findOne({
+                where: { productId, storeId, statusId: 1 },
+                include: [{ model: RecipeItem, include: [InventoryItem] }],
+            });
+            if (!recipe) return res.json(null);
+            res.json(ProductController.normalizeRecipeRows([recipe])[0]);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async listRecipes(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const recipes = await Recipe.findAll({
+                where: { storeId, statusId: 1 },
+                include: [{ model: RecipeItem, include: [InventoryItem] }],
+            });
+            res.json(ProductController.normalizeRecipeRows(recipes));
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async upsertProductStock(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const { productId, currentStock, minStock, headquarterId } = req.body;
+            const product = await Product.findOne({ where: { id: productId, storeId } });
+            if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+            const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, headquarterId);
+            const stockItem = await InventoryConsumptionService.upsertProductStock({
+                product,
+                currentStock,
+                minStock,
+                storeId,
+                headquarterId: resolvedHeadquarterId,
+            });
+            res.json({
+                productId: String(product.id),
+                currentStock: Number(stockItem.stock),
+                minStock: Number(stockItem.min_stock),
+                updatedAt: stockItem.updatedAt,
+            });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async listProductStock(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const where = { storeId, statusId: 1 };
+            if (req.query.headquarterId) where.headquarterId = Number(req.query.headquarterId);
+            const rows = await InventoryItem.findAll({ where, include: [Product] });
+            res.json(rows
+                .filter((item) => item.productId)
+                .map((item) => ({
+                    productId: String(item.productId),
+                    currentStock: Number(item.stock),
+                    minStock: Number(item.min_stock),
+                    updatedAt: item.updatedAt,
+                })));
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async consumeProductStock(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const { productId, quantity, headquarterId } = req.body;
+            const product = await Product.findOne({ where: { id: productId, storeId } });
+            if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+            const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, headquarterId);
+            const stockItem = await InventoryItem.findOne({
+                where: { productId: product.id, storeId, headquarterId: resolvedHeadquarterId, statusId: 1 },
+            });
+            if (!stockItem) return res.status(404).json({ error: 'Stock directo no configurado para el producto' });
+            await InventoryConsumptionService.consumeInventoryItem({
+                inventoryItem: stockItem,
+                quantity,
+                reason: `Ajuste manual - producto ${product.name}`,
+                storeId,
+                headquarterId: resolvedHeadquarterId,
+            });
+            res.json({ ok: true });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async consumeOrderInventory(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const { orderId } = req.body;
+            if (!orderId) return res.status(400).json({ error: 'orderId es requerido' });
+            const result = await sequelize.transaction((transaction) =>
+                InventoryConsumptionService.consumeOrderInventory(orderId, storeId, { transaction })
+            );
+            res.json(result);
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async upsertIngredientStock(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, req.body.headquarterId);
+            const item = await InventoryConsumptionService.upsertIngredientStock({
+                name: req.body.name,
+                unit: req.body.unit,
+                currentStock: req.body.currentStock ?? req.body.stock ?? 0,
+                minStock: req.body.minStock ?? req.body.minimumStock ?? 0,
+                storeId,
+                headquarterId: resolvedHeadquarterId,
+            });
+            res.json({
+                key: String(item.id),
+                name: item.name,
+                unit: item.unit,
+                currentStock: Number(item.stock),
+                minStock: Number(item.min_stock),
+                updatedAt: item.updatedAt,
+            });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async listIngredients(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const where = { storeId, statusId: 1, productId: null };
+            if (req.query.headquarterId) where.headquarterId = Number(req.query.headquarterId);
+            const rows = await InventoryItem.findAll({ where, order: [['name', 'ASC']] });
+            res.json(rows.map((item) => ({
+                key: String(item.id),
+                name: item.name,
+                unit: item.unit,
+                currentStock: Number(item.stock),
+                minStock: Number(item.min_stock),
+                updatedAt: item.updatedAt,
+            })));
         } catch (err) {
             res.status(400).json({ error: err.message });
         }

@@ -173,6 +173,8 @@ class AuthController {
             firstname: user.firstname, 
             lastname: user.lastname, 
             email: user.email, 
+            profile_image_url: user.profile_image_url,
+            profileImageUrl: user.profile_image_url,
             customerId: user.customerId,
             storeId: user.storeId,
             headquarterId: user.headquarterId,

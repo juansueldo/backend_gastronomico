@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import { Op } from 'sequelize'
 import { Store, User, Role } from '../models/index.js';
+import ImageService from '../services/imageService.js';
 
 class UserController {
     static async createUser(req, res) {
@@ -93,6 +94,59 @@ class UserController {
         } catch (err) {
             console.error('Update user error:', err); // 👈 log útil en producción
             res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    static async updateProfileImage(req, res) {
+        try {
+            const userId = req.user?.id;
+            const storeId = req.user?.storeId;
+            const image = req.body?.image ?? req.body?.profileImage ?? req.body?.profile_image ?? req.body?.avatar;
+
+            if (!userId || !storeId) {
+                return res.status(401).json({ error: 'Usuario no autenticado' });
+            }
+
+            if (!image || typeof image !== 'string') {
+                return res.status(400).json({ error: 'Imagen requerida' });
+            }
+
+            if (!ImageService.isValidBase64(image)) {
+                return res.status(400).json({ error: 'Imagen base64 inválida' });
+            }
+
+            const user = await User.findOne({ where: { id: userId, storeId } });
+            if (!user) {
+                return res.status(404).json({ error: 'User not found' });
+            }
+
+            if (user.profile_image_url) {
+                await ImageService.deleteImage(user.profile_image_url);
+            }
+
+            const imageResult = await ImageService.saveImage(
+                image,
+                storeId,
+                `user_${userId}_profile_${Date.now()}`
+            );
+
+            await user.update({ profile_image_url: imageResult.url });
+
+            res.json({
+                profile_image_url: imageResult.url,
+                profileImageUrl: imageResult.url,
+                user: {
+                    id: user.id,
+                    firstname: user.firstname,
+                    lastname: user.lastname,
+                    email: user.email,
+                    username: user.username,
+                    profile_image_url: imageResult.url,
+                    profileImageUrl: imageResult.url,
+                },
+            });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
         }
     }
 }

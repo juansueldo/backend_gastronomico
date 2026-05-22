@@ -8,4 +8,12 @@ router.get('/', authRequired, async (req, res) => {
   await NotificationController.getAll(req, res);
 });
 
+router.post('/read-all', authRequired, async (req, res) => {
+  await NotificationController.markAllAsRead(req, res);
+});
+
+router.post('/:id/read', authRequired, async (req, res) => {
+  await NotificationController.markAsRead(req, res);
+});
+
 export default router;

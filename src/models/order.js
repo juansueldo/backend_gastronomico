@@ -21,6 +21,7 @@ const Order = sequelize.define('Order', {
     scheduled_date: { type: DataTypes.DATEONLY, allowNull: true },
     scheduled_time: { type: DataTypes.TIME, allowNull: true },
     status: { type: DataTypes.ENUM, values: ['pending', 'processing', 'ready', 'completed', 'cancelled'], allowNull: false, defaultValue: 'pending' },
+    inventory_discounted_at: { type: DataTypes.DATE, allowNull: true },
     tableId: { type: DataTypes.INTEGER, allowNull: true },
     waiterId: { type: DataTypes.INTEGER, allowNull: true },
 });

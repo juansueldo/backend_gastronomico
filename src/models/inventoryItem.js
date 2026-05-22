@@ -8,9 +8,10 @@ const InventoryItem = sequelize.define('InventoryItem', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
   name: { type: DataTypes.STRING, allowNull: false },
   description: { type: DataTypes.STRING },
-  unit: { type: DataTypes.ENUM, values: ['kg', 'gr', 'lt', 'ml'], allowNull: false }, 
+  unit: { type: DataTypes.ENUM, values: ['unidad', 'kg', 'gr', 'lt', 'ml'], allowNull: false, defaultValue: 'unidad' },
   stock: { type: DataTypes.FLOAT, allowNull: false },
   min_stock: { type: DataTypes.FLOAT, allowNull: false },
+  productId: { type: DataTypes.INTEGER, allowNull: true },
 });
 
 InventoryItem.belongsTo(Store, { foreignKey: 'storeId' });

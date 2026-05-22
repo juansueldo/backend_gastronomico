@@ -14,6 +14,7 @@ import {
 } from '../models/index.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
+import InventoryConsumptionService from '../services/inventoryConsumptionService.js';
 
 const ORDER_STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'];
 const ORDER_STATUS_TRANSITIONS = {
@@ -493,9 +494,15 @@ class OrderController {
       cancelled: 5,
     };
 
-    await order.update({
-      status,
-      statusId: STATUS_ID_MAP[status],
+    await sequelize.transaction(async (transaction) => {
+      if (status === 'completed') {
+        await InventoryConsumptionService.consumeOrderInventory(order.id, storeId, { transaction });
+      }
+
+      await order.update({
+        status,
+        statusId: STATUS_ID_MAP[status],
+      }, { transaction });
     });
 
     const updatedOrder = await getOrderWithRelations(id, storeId);

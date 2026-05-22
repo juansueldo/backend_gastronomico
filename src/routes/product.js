@@ -153,6 +153,50 @@ router.get('/', async (req, res) => {
   await ProductController.getAll(req, res);
 });
 
+router.post('/recipe/save', async (req, res) => {
+  await ProductController.saveRecipe(req, res);
+});
+
+router.get('/recipe', async (req, res) => {
+  await ProductController.getRecipe(req, res);
+});
+
+router.get('/recipe/list', async (req, res) => {
+  await ProductController.listRecipes(req, res);
+});
+
+router.post('/stock/upsert', async (req, res) => {
+  await ProductController.upsertProductStock(req, res);
+});
+
+router.get('/stock', async (req, res) => {
+  await ProductController.listProductStock(req, res);
+});
+
+router.post('/stock/consume', async (req, res) => {
+  await ProductController.consumeProductStock(req, res);
+});
+
+router.post('/inventory/consume-order', async (req, res) => {
+  await ProductController.consumeOrderInventory(req, res);
+});
+
+router.post('/ingredient/stock/upsert', async (req, res) => {
+  await ProductController.upsertIngredientStock(req, res);
+});
+
+router.post('/ingredient/create', async (req, res) => {
+  await ProductController.upsertIngredientStock(req, res);
+});
+
+router.get('/ingredient/list', async (req, res) => {
+  await ProductController.listIngredients(req, res);
+});
+
+router.get('/ingredient/stock', async (req, res) => {
+  await ProductController.listIngredients(req, res);
+});
+
 /**
  * @swagger
  * /product/{id}:

@@ -7,7 +7,7 @@ import InventoryItem from './inventoryItem.js';
 
 const RecipeItem = sequelize.define('RecipeItem', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-  quantity: { type: DataTypes.INTEGER, allowNull: false },
+  quantity: { type: DataTypes.FLOAT, allowNull: false },
 }); 
 
 

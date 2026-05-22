@@ -66,6 +66,10 @@ export {
 Product.hasMany(InventoryItem, { foreignKey: 'productId' });
 InventoryItem.belongsTo(Product, { foreignKey: 'productId' });
 
+Product.hasOne(Recipe, { foreignKey: 'productId' });
+Recipe.hasMany(RecipeItem, { foreignKey: 'recipeId' });
+InventoryItem.hasMany(RecipeItem, { foreignKey: 'inventoryItemId' });
+
 // Relaciones Plan - PlanPrice - PlanFeatures
 Plan.hasMany(PlanPrice, { foreignKey: 'planId' });
 PlanPrice.belongsTo(Plan, { foreignKey: 'planId' });

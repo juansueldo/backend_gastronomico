@@ -10,6 +10,7 @@ const Notification = sequelize.define('Notification',{
     title: {type: DataTypes.STRING},
     message: {type: DataTypes.STRING},
     icon: {type: DataTypes.STRING, allowNull: true},
+    readAt: {type: DataTypes.DATE, allowNull: true},
 
 });
 

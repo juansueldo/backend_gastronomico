@@ -139,6 +139,10 @@ router.get('/', authRequired, async (req, res) => {
   await UserController.getAllUsers(req, res);
 });
 
+router.patch('/profile-image', authRequired, async (req, res) => {
+  await UserController.updateProfileImage(req, res);
+});
+
 router.get('/:id', authRequired, async (req, res) => {
   await UserController.getUserById(req, res);
 });
