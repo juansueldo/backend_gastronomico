@@ -8,6 +8,8 @@ const Headquarter = sequelize.define('Headquarter', {
   name: { type: DataTypes.STRING, allowNull: false },
   phone: { type: DataTypes.STRING },
   location: { type: DataTypes.STRING },
+  latitude: { type: DataTypes.DECIMAL(10, 8), allowNull: true },
+  longitude: { type: DataTypes.DECIMAL(11, 8), allowNull: true },
   closure_periods: { type: DataTypes.JSON, allowNull: true },
 });
 

@@ -32,6 +32,20 @@ const router = express.Router();
  *               location:
  *                 type: string
  *                 example: "Av. Corrientes 1234"
+ *               latitude:
+ *                 type: number
+ *                 format: double
+ *                 nullable: true
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 example: -34.70673
+ *               longitude:
+ *                 type: number
+ *                 format: double
+ *                 nullable: true
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 example: -58.28587
  *               open_time:
  *                 type: string
  *                 example: "09:00"
@@ -130,6 +144,20 @@ const router = express.Router();
  *               location:
  *                 type: string
  *                 example: "Av. Corrientes 999"
+ *               latitude:
+ *                 type: number
+ *                 format: double
+ *                 nullable: true
+ *                 minimum: -90
+ *                 maximum: 90
+ *                 example: -34.70673
+ *               longitude:
+ *                 type: number
+ *                 format: double
+ *                 nullable: true
+ *                 minimum: -180
+ *                 maximum: 180
+ *                 example: -58.28587
  *               open_time:
  *                 type: string
  *                 example: "10:00"
@@ -377,6 +405,10 @@ router.get('/:id', async(req, res)=>{
 });
 
 router.put('/:id', async (req, res) => {
+  await HeadquarterController.update(req, res);
+});
+
+router.patch('/:id', async (req, res) => {
   await HeadquarterController.update(req, res);
 });
 

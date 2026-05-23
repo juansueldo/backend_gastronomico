@@ -9271,6 +9271,22 @@
                     "type": "string",
                     "example": "Av. Corrientes 1234"
                   },
+                  "latitude": {
+                    "type": "number",
+                    "format": "double",
+                    "nullable": true,
+                    "minimum": -90,
+                    "maximum": 90,
+                    "example": -34.70673
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "format": "double",
+                    "nullable": true,
+                    "minimum": -180,
+                    "maximum": 180,
+                    "example": -58.28587
+                  },
                   "open_time": {
                     "type": "string",
                     "example": "09:00",
@@ -9506,6 +9522,22 @@
                     "type": "string",
                     "example": "Av. Corrientes 999"
                   },
+                  "latitude": {
+                    "type": "number",
+                    "format": "double",
+                    "nullable": true,
+                    "minimum": -90,
+                    "maximum": 90,
+                    "example": -34.70673
+                  },
+                  "longitude": {
+                    "type": "number",
+                    "format": "double",
+                    "nullable": true,
+                    "minimum": -180,
+                    "maximum": 180,
+                    "example": -58.28587
+                  },
                   "open_time": {
                     "type": "string",
                     "example": "10:00"
@@ -9550,6 +9582,85 @@
                     }
                   }
                 }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Headquarter"
+        ],
+        "summary": "Actualizar sede",
+        "operationId": "patchHeadquarterId",
+        "x-source-file": "src/routes/headquarter.js",
+        "responses": {
+          "200": {
+            "description": "Operacion ejecutada correctamente"
+          },
+          "400": {
+            "description": "Solicitud invalida",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No autenticado o token invalido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Recurso no encontrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno del servidor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
               }
             }
           }

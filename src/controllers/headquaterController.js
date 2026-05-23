@@ -89,6 +89,36 @@ function normalizeClosurePeriods(rawValue) {
     });
 }
 
+function normalizeCoordinate(rawValue, fieldName, minValue, maxValue) {
+    if (rawValue === undefined) return undefined;
+
+    if (rawValue === null || rawValue === '') {
+        return null;
+    }
+
+    const parsedValue = Number(rawValue);
+
+    if (!Number.isFinite(parsedValue)) {
+        throw new Error(`${fieldName} debe ser un número válido`);
+    }
+
+    if (parsedValue < minValue || parsedValue > maxValue) {
+        throw new Error(`${fieldName} debe estar entre ${minValue} y ${maxValue}`);
+    }
+
+    return parsedValue;
+}
+
+function getOptionalBodyField(body, fieldNames) {
+    for (const fieldName of fieldNames) {
+        if (hasOwnProperty(body, fieldName)) {
+            return body[fieldName];
+        }
+    }
+
+    return undefined;
+}
+
 const WEEK_DAYS = [
     'monday',
     'tuesday',
@@ -236,11 +266,27 @@ class HeadquarterController {
                 normalizeClosurePeriods(
                     closure_periods ?? closurePeriods
                 );
+            const normalizedLatitude =
+                normalizeCoordinate(
+                    getOptionalBodyField(req.body, ['latitude', 'lat']),
+                    'latitude',
+                    -90,
+                    90
+                );
+            const normalizedLongitude =
+                normalizeCoordinate(
+                    getOptionalBodyField(req.body, ['longitude', 'lng', 'long']),
+                    'longitude',
+                    -180,
+                    180
+                );
 
             const headquarter = await Headquarter.create({
                 name,
                 phone,
                 location,
+                latitude: normalizedLatitude ?? null,
+                longitude: normalizedLongitude ?? null,
                 closure_periods:
                     normalizedClosurePeriods ?? null,
                 storeId,
@@ -367,6 +413,19 @@ class HeadquarterController {
 
             if (hasOwnProperty(req.body, 'location')) {
                 updateData.location = req.body.location;
+            }
+
+            const latitudeField = getOptionalBodyField(req.body, ['latitude', 'lat']);
+            const longitudeField = getOptionalBodyField(req.body, ['longitude', 'lng', 'long']);
+
+            if (latitudeField !== undefined) {
+                updateData.latitude =
+                    normalizeCoordinate(latitudeField, 'latitude', -90, 90);
+            }
+
+            if (longitudeField !== undefined) {
+                updateData.longitude =
+                    normalizeCoordinate(longitudeField, 'longitude', -180, 180);
             }
 
             if (closurePeriodsField !== undefined) {
