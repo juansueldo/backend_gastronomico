@@ -183,12 +183,20 @@ router.get('/search', authRequired, async (req, res) => {
   await CustomerController.search(req, res);
 }); 
 
+router.get('/datatable', authRequired, async (req, res) => {
+  await CustomerController.datatable(req, res);
+});
+
 router.post('/', authRequired, async (req, res) => {
   await CustomerController.create(req, res);
 });
 
 router.get('/', authRequired, async (req, res) => {
   await CustomerController.getAll(req, res);
+});
+
+router.get('/:id/orders', authRequired, async (req, res) => {
+  await CustomerController.getOrders(req, res);
 });
 
 router.get('/:id', authRequired, async (req, res) => {
