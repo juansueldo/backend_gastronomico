@@ -29,6 +29,9 @@ import Waiter from './waiter.js';
 import CashRegisterMovement from './cashRegisterMovement.js';
 import Notification from './notification.js';
 import HeadquarterSchedule from './headquarterSchedule.js';
+import MessagingAccount from './messagingAccount.js';
+import Conversation from './conversation.js';
+import Message from './message.js';
 
 export {
   Status,
@@ -59,6 +62,9 @@ export {
   CashRegisterMovement,
   Notification,
   HeadquarterSchedule,
+  MessagingAccount,
+  Conversation,
+  Message,
   sequelize
 };
 
@@ -90,6 +96,18 @@ Waiter.hasMany(Order, { foreignKey: 'waiterId' });
 Order.hasMany(OrderItem, {foreignKey: 'orderId'});
 
 OrderItem.belongsTo(Order, {foreignKey: 'orderId'});
+
+MessagingAccount.hasMany(Conversation, { foreignKey: 'messagingAccountId' });
+Conversation.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });
+
+Conversation.hasMany(Message, { foreignKey: 'conversationId' });
+Message.belongsTo(Conversation, { foreignKey: 'conversationId' });
+
+MessagingAccount.hasMany(Message, { foreignKey: 'messagingAccountId' });
+Message.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });
+
+Customer.hasMany(Conversation, { foreignKey: 'customerId' });
+Contact.hasMany(Conversation, { foreignKey: 'contactId' });
 // Sincroniza todos los modelos
 export async function syncModels() {
   await sequelize.sync({ alter: true });

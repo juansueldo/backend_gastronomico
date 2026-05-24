@@ -32,9 +32,10 @@ import websocketRoutes from './src/routes/websocket.js';
 import headquarterRoutes from './src/routes/headquarter.js';
 import storefrontRoutes from './src/routes/storefront.js';
 import notificationRoutes from './src/routes/notification.js';
+import messagingRoutes from './src/routes/messaging.js';
 
 const version = process.env.API_VERSION || 'v1';
-const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '10mb';
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '30mb';
 process.removeAllListeners('warning');
 process.on('warning', () => {});
 
@@ -111,6 +112,7 @@ app.use(`/${version}/product`, authRequired, productRoutes);
 app.use(`/${version}/user`, authRequired, userRoutes);
 app.use(`/${version}/headquarter`, authRequired, headquarterRoutes);
 app.use(`/${version}/notifications`, authRequired, notificationRoutes);
+app.use(`/${version}/messaging`, messagingRoutes);
 
 // Rutas WebSocket (status y debugging)
 app.use(`/${version}/websocket`, authOptional, websocketRoutes);
