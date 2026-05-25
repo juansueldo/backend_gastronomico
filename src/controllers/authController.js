@@ -185,7 +185,11 @@ class AuthController {
               name: store.name,
               slug: store.slug,
               profile_image_url: store.profile_image_url,
-              profileImageUrl: store.profile_image_url
+              profileImageUrl: store.profile_image_url,
+              offers_delivery: store.offers_delivery !== false,
+              offersDelivery: store.offers_delivery !== false,
+              offers_pickup: store.offers_pickup !== false,
+              offersPickup: store.offers_pickup !== false
             } : null,
             subscription,
             hasSubscription: Boolean(subscription),

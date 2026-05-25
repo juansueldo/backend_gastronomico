@@ -1,4 +1,5 @@
 
+import { DataTypes } from 'sequelize';
 import sequelize from './db.js';
 
 import Status from './status.js';
@@ -124,8 +125,39 @@ async function ensureSystemStatuses() {
   }
 }
 
+async function ensureStoreSalesChannelColumns() {
+  const queryInterface = sequelize.getQueryInterface();
+
+  try {
+    const tableDescription = await queryInterface.describeTable('Stores');
+
+    if (!tableDescription.offers_delivery) {
+      await queryInterface.addColumn('Stores', 'offers_delivery', {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      });
+    }
+
+    if (!tableDescription.offers_pickup) {
+      await queryInterface.addColumn('Stores', 'offers_pickup', {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
+      });
+    }
+  } catch (error) {
+    const message = String(error?.message ?? error);
+    if (!message.includes('No description found') && !message.includes('does not exist')) {
+      throw error;
+    }
+  }
+}
+
 // Sincroniza todos los modelos
 export async function syncModels() {
+  await ensureStoreSalesChannelColumns();
   await sequelize.sync({ alter: true });
+  await ensureStoreSalesChannelColumns();
   await ensureSystemStatuses();
 }

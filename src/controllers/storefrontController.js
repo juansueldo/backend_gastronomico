@@ -52,6 +52,8 @@ function normalizeHeadquarter(headquarter) {
     name: headquarter.name,
     location: headquarter.location || undefined,
     phone: headquarter.phone || undefined,
+    latitude: headquarter.latitude !== undefined && headquarter.latitude !== null ? Number(headquarter.latitude) : undefined,
+    longitude: headquarter.longitude !== undefined && headquarter.longitude !== null ? Number(headquarter.longitude) : undefined,
     closure_periods: closurePeriods,
     closurePeriods: closurePeriods,
     schedules,
@@ -117,6 +119,19 @@ function mapStoreOrderType(rawType) {
 
 function isValueProvided(value) {
   return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function normalizeBooleanFlag(value) {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+
+  const normalized = String(value).trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (['true', '1', 'yes', 'si', 'sí', 'on'].includes(normalized)) return true;
+  if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+
+  return undefined;
 }
 
 function normalizeDateValue(value) {
@@ -226,6 +241,18 @@ class StorefrontController {
       const nextProfileImageUrl = typeof (profile_image_url ?? profileImageUrl) === 'string'
         ? String(profile_image_url ?? profileImageUrl).trim()
         : undefined;
+      const nextOffersDelivery = normalizeBooleanFlag(
+        req.body.offers_delivery
+        ?? req.body.offersDelivery
+        ?? req.body.delivery_enabled
+        ?? req.body.deliveryEnabled
+      );
+      const nextOffersPickup = normalizeBooleanFlag(
+        req.body.offers_pickup
+        ?? req.body.offersPickup
+        ?? req.body.pickup_enabled
+        ?? req.body.pickupEnabled
+      );
 
       if (nextName !== undefined && !nextName) {
         return res.status(400).json({ error: 'name no puede estar vacío' });
@@ -253,6 +280,8 @@ class StorefrontController {
         ...(nextName !== undefined ? { name: nextName } : {}),
         ...(nextSlug !== undefined ? { slug: nextSlug } : {}),
         ...(nextProfileImageUrl !== undefined ? { profile_image_url: nextProfileImageUrl || null } : {}),
+        ...(nextOffersDelivery !== undefined ? { offers_delivery: nextOffersDelivery } : {}),
+        ...(nextOffersPickup !== undefined ? { offers_pickup: nextOffersPickup } : {}),
       });
 
       return res.status(200).json({
@@ -261,6 +290,10 @@ class StorefrontController {
         slug: store.slug,
         profile_image_url: store.profile_image_url,
         profileImageUrl: store.profile_image_url,
+        offers_delivery: store.offers_delivery !== false,
+        offersDelivery: store.offers_delivery !== false,
+        offers_pickup: store.offers_pickup !== false,
+        offersPickup: store.offers_pickup !== false,
       });
     } catch (err) {
       return res.status(400).json({ error: err.message });
@@ -338,7 +371,7 @@ class StorefrontController {
 
       const headquarters = await Headquarter.findAll({
         where: { storeId: store.id, statusId: ACTIVE_STATUS_ID },
-        attributes: ['id', 'name', 'location', 'phone', 'closure_periods'],
+        attributes: ['id', 'name', 'location', 'phone', 'latitude', 'longitude', 'closure_periods'],
         order: [['id', 'ASC']],
         include: [
           {
@@ -359,6 +392,10 @@ class StorefrontController {
         profile_image_url: store.profile_image_url || undefined,
         profileImageUrl: store.profile_image_url || undefined,
         statusId: store.statusId,
+        offers_delivery: store.offers_delivery !== false,
+        offersDelivery: store.offers_delivery !== false,
+        offers_pickup: store.offers_pickup !== false,
+        offersPickup: store.offers_pickup !== false,
         pickupHeadquarters,
         pickup_headquarters: pickupHeadquarters,
         defaultHeadquarterId,
@@ -393,7 +430,7 @@ class StorefrontController {
 
       const headquarters = await Headquarter.findAll({
         where: { storeId: store.id, statusId: ACTIVE_STATUS_ID },
-        attributes: ['id', 'name', 'location', 'phone', 'closure_periods'],
+        attributes: ['id', 'name', 'location', 'phone', 'latitude', 'longitude', 'closure_periods'],
         order: [['id', 'ASC']],
       });
 
@@ -466,6 +503,10 @@ class StorefrontController {
         categories,
         headquarters: mappedHeadquarters,
         pickupHeadquarters: mappedHeadquarters,
+        offers_delivery: store.offers_delivery !== false,
+        offersDelivery: store.offers_delivery !== false,
+        offers_pickup: store.offers_pickup !== false,
+        offersPickup: store.offers_pickup !== false,
         selectedHeadquarterId: responseSelectedHeadquarterId,
         defaultHeadquarterId,
         pickupHeadquarterId: defaultHeadquarterId,
@@ -522,6 +563,12 @@ class StorefrontController {
       if (!customerName) return res.status(400).json({ error: 'customerName es requerido' });
       if (!phone) return res.status(400).json({ error: 'phone es requerido' });
       if (!type) return res.status(400).json({ error: 'type debe ser delivery o pickup' });
+      if (type === 'delivery' && store.offers_delivery === false) {
+        return res.status(400).json({ error: 'La tienda no ofrece delivery actualmente' });
+      }
+      if (type === 'takeaway' && store.offers_pickup === false) {
+        return res.status(400).json({ error: 'La tienda no ofrece retiro actualmente' });
+      }
       if (type === 'delivery' && !address) {
         return res.status(400).json({ error: 'address es requerido para órdenes delivery' });
       }
