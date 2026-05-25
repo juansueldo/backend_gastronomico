@@ -39,6 +39,13 @@ function isWhatsappLid(value) {
   return String(value || '').toLowerCase().includes('@lid');
 }
 
+function lidToExternalChatId(value) {
+  if (!isWhatsappLid(value)) return null;
+  const userPart = String(value || '').split('@')[0] || '';
+  const digits = userPart.replace(/\D/g, '');
+  return digits ? `${digits}@c.us` : null;
+}
+
 function getInboundPhone(payload) {
   const candidates = [
     payload.fromPhone,
@@ -475,6 +482,10 @@ async function getConversationRecipientIds(conversation, account) {
 
   const lidAliases = aliases.filter(isWhatsappLid);
   const nonLidAliases = aliases.filter((alias) => !isWhatsappLid(alias));
+  const convertedLidAliases = [
+    lidToExternalChatId(primary),
+    ...lidAliases.map(lidToExternalChatId),
+  ].filter(Boolean);
   const nonLidPrimary = primary && !isWhatsappLid(primary) ? primary : null;
   const lidPrimary = primary && isWhatsappLid(primary) ? primary : null;
   const customerPhoneChatId = customerPhone ? toExternalChatId(customerPhone) : null;
@@ -486,6 +497,7 @@ async function getConversationRecipientIds(conversation, account) {
     customerPhoneChatId,
     contactChatId,
     nonLidPrimary,
+    ...convertedLidAliases,
     ...nonLidAliases,
     lidPrimary,
     ...lidAliases,
