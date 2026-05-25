@@ -122,4 +122,8 @@ router.put('/:id', authRequired, async (req, res) => {
   await CategoryController.update(req, res);
 });
 
+router.delete('/:id', authRequired, async (req, res) => {
+  await CategoryController.delete(req, res);
+});
+
 export default router;

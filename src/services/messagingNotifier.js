@@ -17,11 +17,17 @@ class MessagingNotifier {
   }
 
   static messageReceived(storeId, message, conversation) {
-    this.emit(storeId, 'messaging_message_received', { message, conversation });
+    this.emit(storeId, 'messaging_message_received', {
+      message: message?.toJSON ? message.toJSON() : message,
+      conversation: conversation?.toJSON ? conversation.toJSON() : conversation,
+    });
   }
 
   static messageSent(storeId, message, conversation) {
-    this.emit(storeId, 'messaging_message_sent', { message, conversation });
+    this.emit(storeId, 'messaging_message_sent', {
+      message: message?.toJSON ? message.toJSON() : message,
+      conversation: conversation?.toJSON ? conversation.toJSON() : conversation,
+    });
   }
 
   static messageStatusChanged(storeId, message) {

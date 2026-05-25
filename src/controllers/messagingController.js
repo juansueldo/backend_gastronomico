@@ -27,6 +27,86 @@ function toExternalChatId(value) {
   return phone ? `${phone}@c.us` : null;
 }
 
+function normalizeExternalChatId(value) {
+  if (!value) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  if (raw.includes('@')) return raw;
+  return toExternalChatId(raw);
+}
+
+function isWhatsappLid(value) {
+  return String(value || '').toLowerCase().includes('@lid');
+}
+
+function getInboundPhone(payload) {
+  const candidates = [
+    payload.fromPhone,
+    payload.from_phone,
+    payload.phone,
+    payload.from,
+    payload.author,
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || isWhatsappLid(candidate)) continue;
+    const normalized = normalizePhone(candidate);
+    if (normalized) return normalized;
+  }
+
+  return null;
+}
+
+function getInboundExternalChatId(payload, phone = null) {
+  if (phone) return toExternalChatId(phone);
+
+  const candidates = [
+    payload.externalChatId,
+    payload.external_chat_id,
+    payload.from,
+    payload.author,
+    payload.originalFrom,
+    payload.originalAuthor,
+  ];
+
+  for (const candidate of candidates) {
+    const chatId = normalizeExternalChatId(candidate);
+    if (chatId) return chatId;
+  }
+
+  return null;
+}
+
+function getGatewayAliasIds(payload = {}) {
+  const rawAliases = Array.isArray(payload.aliasIds)
+    ? payload.aliasIds
+    : Array.isArray(payload.alias_ids)
+      ? payload.alias_ids
+      : [];
+
+  return Array.from(new Set([
+    payload.chatId,
+    payload.chat_id,
+    payload.contactId,
+    payload.contact_id,
+    payload.to,
+    ...rawAliases,
+  ]
+    .map((alias) => normalizeExternalChatId(alias))
+    .filter(Boolean)));
+}
+
+function buildProviderMessageId(account, payload, phone, body) {
+  if (payload.id) return String(payload.id);
+
+  return [
+    account.id,
+    phone || 'unknown',
+    payload.timestamp || Date.now(),
+    String(body || '').slice(0, 80),
+  ].join(':');
+}
+
 function getPagination(query) {
   const limit = Math.min(Math.max(Number.parseInt(query.limit, 10) || 20, 1), 100);
   const page = Math.max(Number.parseInt(query.page, 10) || 1, 1);
@@ -215,53 +295,229 @@ async function getActiveAccount(storeId) {
   return account;
 }
 
-async function findOrCreateCustomerContact({ storeId, account, phone, name }) {
+async function findOrCreateCustomerContact({ storeId, account, phone, identifier, name, profileImageUrl }) {
   const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone) throw new Error('Teléfono inválido');
-
-  let customer = await Customer.findOne({ where: { storeId, phone: normalizedPhone } });
-  if (!customer) {
-    customer = await Customer.create({
-      storeId,
-      name: name || normalizedPhone,
-      phone: normalizedPhone,
-      statusId: 1,
-    });
-  }
+  const contactIdentifier = normalizedPhone || normalizeExternalChatId(identifier);
+  if (!contactIdentifier) throw new Error('Identificador de contacto inválido');
 
   let contact = await Contact.findOne({
     where: {
       storeId,
-      customerId: customer.id,
       instanceId: account.instanceId,
       type: 'whatsapp',
-      identifier: normalizedPhone,
+      identifier: contactIdentifier,
     },
   });
+
+  let customer = contact?.customerId ? await Customer.findOne({ where: { id: contact.customerId, storeId } }) : null;
+  if (!customer && normalizedPhone) {
+    customer = await Customer.findOne({ where: { storeId, phone: normalizedPhone } });
+  }
+  if (!customer) {
+    customer = await Customer.create({
+      storeId,
+      name: name || normalizedPhone || contactIdentifier,
+      phone: normalizedPhone,
+      statusId: 1,
+      metadata: {
+        ...(profileImageUrl ? { whatsappProfileImageUrl: profileImageUrl } : {}),
+        ...(!normalizedPhone ? { whatsappExternalChatId: contactIdentifier } : {}),
+      },
+    });
+  } else if (profileImageUrl) {
+    await customer.update({
+      metadata: {
+        ...(customer.metadata || {}),
+        whatsappProfileImageUrl: profileImageUrl,
+      },
+    });
+  }
 
   if (!contact) {
     contact = await Contact.create({
       storeId,
       customerId: customer.id,
       instanceId: account.instanceId,
-      identifier: normalizedPhone,
+      identifier: contactIdentifier,
       type: 'whatsapp',
       statusId: 1,
     });
+  } else if (contact.customerId !== customer.id) {
+    await contact.update({ customerId: customer.id });
   }
 
   return { customer, contact };
 }
 
-async function findOrCreateConversation({ storeId, account, phone, name }) {
-  const externalChatId = toExternalChatId(phone);
-  if (!externalChatId) throw new Error('Teléfono inválido');
+async function ensureWhatsappContactAlias({ storeId, account, customerId, identifier }) {
+  const contactIdentifier = normalizeExternalChatId(identifier) || normalizePhone(identifier);
+  if (!contactIdentifier || !customerId) return null;
+
+  const [contact] = await Contact.findOrCreate({
+    where: {
+      storeId,
+      instanceId: account.instanceId,
+      type: 'whatsapp',
+      identifier: contactIdentifier,
+    },
+    defaults: {
+      storeId,
+      customerId,
+      instanceId: account.instanceId,
+      identifier: contactIdentifier,
+      type: 'whatsapp',
+      statusId: 1,
+    },
+  });
+
+  if (contact.customerId !== customerId) {
+    await contact.update({ customerId });
+  }
+
+  return contact;
+}
+
+async function findExistingConversationForAlias({ storeId, account, externalChatId, name, profileImageUrl }) {
+  if (!externalChatId) return null;
+
+  const existingContact = await Contact.findOne({
+    where: {
+      storeId,
+      instanceId: account.instanceId,
+      type: 'whatsapp',
+      identifier: externalChatId,
+    },
+  });
+
+  if (existingContact) {
+    const conversation = await Conversation.findOne({
+      where: {
+        storeId,
+        messagingAccountId: account.id,
+        [Op.or]: [
+          { contactId: existingContact.id },
+          { customerId: existingContact.customerId },
+        ],
+      },
+      order: [['lastMessageAt', 'DESC'], ['updatedAt', 'DESC']],
+    });
+
+    if (conversation) return { conversation, contact: existingContact };
+  }
+
+  const normalizedName = String(name || '').trim();
+  if (!normalizedName && !profileImageUrl) return null;
+
+  const customerWhere = {};
+  if (normalizedName) {
+    customerWhere.name = { [Op.iLike]: normalizedName };
+  }
+  if (profileImageUrl) {
+    customerWhere[Op.or] = [
+      ...(customerWhere[Op.or] || []),
+      { metadata: { whatsappProfileImageUrl: profileImageUrl } },
+    ];
+  }
+
+  const possibleConversations = await Conversation.findAll({
+    where: {
+      storeId,
+      messagingAccountId: account.id,
+      status: 'open',
+    },
+    include: [
+      {
+        model: Customer,
+        attributes: ['id', 'name', 'phone', 'metadata'],
+        where: customerWhere,
+      },
+    ],
+    order: [['lastMessageAt', 'DESC'], ['updatedAt', 'DESC']],
+    limit: 2,
+  });
+
+  if (possibleConversations.length !== 1) return null;
+
+  const conversation = possibleConversations[0];
+  const contact = await ensureWhatsappContactAlias({
+    storeId,
+    account,
+    customerId: conversation.customerId,
+    identifier: externalChatId,
+  });
+
+  if (contact && conversation.contactId !== contact.id) {
+    await conversation.update({ contactId: contact.id });
+  }
+
+  return { conversation, contact };
+}
+
+async function getConversationRecipientIds(conversation, account) {
+  const primary = normalizeExternalChatId(conversation.externalChatId);
+  const customerPhone = normalizePhone(conversation.Customer?.phone);
+  const contactIdentifier = normalizeExternalChatId(conversation.Contact?.identifier) || normalizePhone(conversation.Contact?.identifier);
+  const contacts = conversation.customerId
+    ? await Contact.findAll({
+      where: {
+        storeId: conversation.storeId,
+        customerId: conversation.customerId,
+        instanceId: account.instanceId,
+        type: 'whatsapp',
+      },
+      order: [['updatedAt', 'DESC']],
+    })
+    : [];
+
+  const aliases = contacts
+    .map((contact) => normalizeExternalChatId(contact.identifier))
+    .filter(Boolean);
+
+  const lidAliases = aliases.filter(isWhatsappLid);
+  const nonLidAliases = aliases.filter((alias) => !isWhatsappLid(alias));
+  const nonLidPrimary = primary && !isWhatsappLid(primary) ? primary : null;
+  const lidPrimary = primary && isWhatsappLid(primary) ? primary : null;
+  const customerPhoneChatId = customerPhone ? toExternalChatId(customerPhone) : null;
+  const contactChatId = contactIdentifier && !isWhatsappLid(contactIdentifier)
+    ? normalizeExternalChatId(contactIdentifier)
+    : null;
+
+  return Array.from(new Set([
+    customerPhoneChatId,
+    contactChatId,
+    nonLidPrimary,
+    ...nonLidAliases,
+    lidPrimary,
+    ...lidAliases,
+  ].filter(Boolean)));
+}
+
+async function findOrCreateConversation({ storeId, account, phone, externalChatId: rawExternalChatId, name, profileImageUrl }) {
+  const externalChatId = normalizeExternalChatId(rawExternalChatId) || toExternalChatId(phone);
+  if (!externalChatId) throw new Error('Identificador de conversación inválido');
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone && isWhatsappLid(externalChatId)) {
+    const existingAlias = await findExistingConversationForAlias({
+      storeId,
+      account,
+      externalChatId,
+      name,
+      profileImageUrl,
+    });
+
+    if (existingAlias?.conversation) {
+      return existingAlias.conversation;
+    }
+  }
 
   const { customer, contact } = await findOrCreateCustomerContact({
     storeId,
     account,
     phone,
+    identifier: externalChatId,
     name,
+    profileImageUrl,
   });
 
   const [conversation] = await Conversation.findOrCreate({
@@ -293,11 +549,43 @@ async function loadConversation(conversationId, storeId) {
   return Conversation.findOne({
     where: { id: conversationId, storeId },
     include: [
-      { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
+      { model: Customer, attributes: ['id', 'name', 'phone', 'email', 'metadata'] },
       { model: Contact, attributes: ['id', 'identifier', 'type'] },
       { model: MessagingAccount, attributes: ['id', 'provider', 'status', 'phone', 'displayName'] },
     ],
   });
+}
+
+async function refreshMissingProfilePictures(conversations) {
+  for (const conversation of conversations) {
+    const customer = conversation.Customer;
+    const currentAvatar = customer?.metadata?.whatsappProfileImageUrl;
+    if (!customer || currentAvatar || isWhatsappLid(conversation.externalChatId)) continue;
+
+    try {
+      const account = conversation.MessagingAccount || await MessagingAccount.findByPk(conversation.messagingAccountId);
+      if (!account || MessagingProvider.forAccount(account).getProfilePicUrl === undefined) continue;
+
+      const result = await MessagingProvider.forAccount(account).getProfilePicUrl(account, {
+        to: conversation.externalChatId,
+      });
+      const profileImageUrl = result?.profilePicUrl;
+      if (!profileImageUrl) continue;
+
+      await customer.update({
+        metadata: {
+          ...(customer.metadata || {}),
+          whatsappProfileImageUrl: profileImageUrl,
+        },
+      });
+      customer.metadata = {
+        ...(customer.metadata || {}),
+        whatsappProfileImageUrl: profileImageUrl,
+      };
+    } catch (_err) {
+      // La foto de perfil es opcional; no debe bloquear el listado de chats.
+    }
+  }
 }
 
 async function updateConversationAfterMessage(conversation, message, incrementUnread = false) {
@@ -394,7 +682,10 @@ class MessagingController {
 
       const { limit, offset, page } = getPagination(req.query);
       const search = String(req.query.search || '').trim();
-      const where = { storeId };
+      const where = {
+        storeId,
+        status: { [Op.ne]: 'archived' },
+      };
 
       if (search) {
         where[Op.or] = [
@@ -406,7 +697,7 @@ class MessagingController {
       const conversations = await Conversation.findAndCountAll({
         where,
         include: [
-          { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
+          { model: Customer, attributes: ['id', 'name', 'phone', 'email', 'metadata'] },
           { model: Contact, attributes: ['id', 'identifier', 'type'] },
           { model: MessagingAccount, attributes: ['id', 'provider', 'status', 'phone', 'displayName'] },
         ],
@@ -414,6 +705,8 @@ class MessagingController {
         offset,
         order: [['lastMessageAt', 'DESC'], ['updatedAt', 'DESC']],
       });
+
+      await refreshMissingProfilePictures(conversations.rows);
 
       res.status(200).json({
         count: conversations.count,
@@ -464,7 +757,7 @@ class MessagingController {
       const { body, media } = req.body;
       if (!body && !media) return res.status(400).json({ error: 'body o media es requerido' });
 
-      const conversation = await Conversation.findOne({ where: { id: req.params.id, storeId } });
+      const conversation = await loadConversation(req.params.id, storeId);
       if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
 
       const account = await MessagingAccount.findOne({ where: { id: conversation.messagingAccountId, storeId } });
@@ -488,11 +781,36 @@ class MessagingController {
       });
 
       try {
-        const sent = await MessagingProvider.forAccount(account).sendMessage(account, {
-          to: conversation.externalChatId,
-          body: finalBody,
-          media: outgoingMedia,
-        });
+        const recipientIds = await getConversationRecipientIds(conversation, account);
+        let sent = null;
+        let lastSendError = null;
+
+        for (const recipientId of recipientIds) {
+          try {
+            sent = await MessagingProvider.forAccount(account).sendMessage(account, {
+              to: recipientId,
+              body: finalBody,
+              media: outgoingMedia,
+            });
+            break;
+          } catch (candidateErr) {
+            lastSendError = candidateErr;
+            const message = String(candidateErr?.message || '');
+            if (!message.toLowerCase().includes('lid')) {
+              break;
+            }
+          }
+        }
+
+        if (!sent) throw lastSendError || new Error('No se pudo enviar el mensaje');
+
+        const aliasIds = getGatewayAliasIds(sent);
+        await Promise.all(aliasIds.map((aliasId) => ensureWhatsappContactAlias({
+          storeId,
+          account,
+          customerId: conversation.customerId,
+          identifier: aliasId,
+        })));
         await message.update({
           providerMessageId: sent.providerMessageId || null,
           status: 'sent',
@@ -506,7 +824,6 @@ class MessagingController {
 
       const updatedConversation = await updateConversationAfterMessage(conversation, message, false);
       MessagingNotifier.messageSent(storeId, message, updatedConversation);
-      MessagingNotifier.conversationUpdated(storeId, updatedConversation);
       res.status(201).json({ message, conversation: updatedConversation });
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -562,6 +879,27 @@ class MessagingController {
       const updatedConversation = await loadConversation(conversation.id, storeId);
       MessagingNotifier.conversationUpdated(storeId, updatedConversation);
       res.status(200).json(updatedConversation);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async deleteConversation(req, res) {
+    try {
+      const storeId = req.user?.storeId;
+      if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+
+      const conversation = await Conversation.findOne({ where: { id: req.params.id, storeId } });
+      if (!conversation) return res.status(404).json({ error: 'Conversación no encontrada' });
+
+      await conversation.update({
+        status: 'archived',
+        unreadCount: 0,
+      });
+
+      const updatedConversation = await loadConversation(conversation.id, storeId);
+      MessagingNotifier.conversationUpdated(storeId, updatedConversation);
+      res.status(200).json({ ok: true, conversation: updatedConversation });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -627,21 +965,29 @@ class MessagingController {
           return res.status(200).json({ ok: true, ignored: 'outbound_echo' });
         }
 
-        const phone = payload.from || payload.author;
+        const phone = getInboundPhone(payload);
+        const externalChatId = getInboundExternalChatId(payload, phone);
+        if (!phone && !externalChatId) {
+          return res.status(200).json({ ok: true, ignored: 'unresolved_sender' });
+        }
+
         const conversation = await findOrCreateConversation({
           storeId,
           account,
           phone,
+          externalChatId,
           name: payload.notifyName,
+          profileImageUrl: payload.profilePicUrl,
         });
         const messageType = normalizeMessageType(payload.type || payload.mediaType || payload.media_mime || payload.mimetype);
         const mediaMetadata = await storeIncomingMedia(storeId, getMediaMetadata(payload));
         const body = getMessageBody(payload, messageType, mediaMetadata);
+        const providerMessageId = buildProviderMessageId(account, payload, phone, body);
 
-        const [message] = await Message.findOrCreate({
+        const [message, wasCreated] = await Message.findOrCreate({
           where: {
             storeId,
-            providerMessageId: payload.id,
+            providerMessageId,
             messagingAccountId: account.id,
           },
           defaults: {
@@ -649,7 +995,7 @@ class MessagingController {
             conversationId: conversation.id,
             messagingAccountId: account.id,
             provider: account.provider,
-            providerMessageId: payload.id,
+            providerMessageId,
             direction: 'inbound',
             type: messageType,
             body,
@@ -663,25 +1009,27 @@ class MessagingController {
           },
         });
 
-        const updatedConversation = await updateConversationAfterMessage(conversation, message, true);
-        try {
-          await NotificationService.createStoreNotification(
-            storeId,
-            'Nuevo mensaje de WhatsApp',
-            `${payload.notifyName || normalizePhone(phone) || 'Cliente'}: ${preview(body) || 'Adjunto recibido'}`,
-            'message-icon',
-          );
-          NotificationService.notifyChannel(storeId, 'notifications', 'notification_created', {
-            title: 'Nuevo mensaje de WhatsApp',
-            message: `${payload.notifyName || normalizePhone(phone) || 'Cliente'}: ${preview(body) || 'Adjunto recibido'}`,
-            conversationId: conversation.id,
-            messageId: message.id,
-          });
-        } catch (notificationErr) {
-          console.error('Error creando notificación de mensaje entrante:', notificationErr);
+        const updatedConversation = await updateConversationAfterMessage(conversation, message, wasCreated);
+        if (wasCreated) {
+          try {
+            await NotificationService.createStoreNotification(
+              storeId,
+              'Nuevo mensaje de WhatsApp',
+              `${payload.notifyName || normalizePhone(phone) || 'Cliente'}: ${preview(body) || 'Adjunto recibido'}`,
+              'message-icon',
+            );
+            NotificationService.notifyChannel(storeId, 'notifications', 'notification_created', {
+              title: 'Nuevo mensaje de WhatsApp',
+              message: `${payload.notifyName || normalizePhone(phone) || 'Cliente'}: ${preview(body) || 'Adjunto recibido'}`,
+              conversationId: conversation.id,
+              messageId: message.id,
+            });
+          } catch (notificationErr) {
+            console.error('Error creando notificación de mensaje entrante:', notificationErr);
+          }
+          MessagingNotifier.messageReceived(storeId, message, updatedConversation);
+          MessagingNotifier.conversationUpdated(storeId, updatedConversation);
         }
-        MessagingNotifier.messageReceived(storeId, message, updatedConversation);
-        MessagingNotifier.conversationUpdated(storeId, updatedConversation);
         return res.status(200).json({ ok: true });
       }
 

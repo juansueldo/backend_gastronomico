@@ -108,7 +108,24 @@ Message.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });
 
 Customer.hasMany(Conversation, { foreignKey: 'customerId' });
 Contact.hasMany(Conversation, { foreignKey: 'contactId' });
+
+async function ensureSystemStatuses() {
+  await Status.findOrCreate({ where: { id: 1 }, defaults: { name: 'Activo' } });
+  await Status.findOrCreate({ where: { id: 2 }, defaults: { name: 'Inactivo' } });
+
+  if (sequelize.getDialect() === 'postgres') {
+    await sequelize.query(`
+      SELECT setval(
+        pg_get_serial_sequence('"Statuses"', 'id'),
+        COALESCE((SELECT MAX(id) FROM "Statuses"), 1),
+        true
+      )
+    `);
+  }
+}
+
 // Sincroniza todos los modelos
 export async function syncModels() {
   await sequelize.sync({ alter: true });
+  await ensureSystemStatuses();
 }

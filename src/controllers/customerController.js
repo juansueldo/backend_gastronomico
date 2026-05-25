@@ -12,6 +12,9 @@ import {
     Waiter,
 } from '../models/index.js';
 
+const ACTIVE_STATUS_ID = 1;
+const INACTIVE_STATUS_ID = 2;
+
 function toPositiveInteger(value, fallback) {
     const parsed = Number.parseInt(value, 10);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -97,7 +100,7 @@ class CustomerController {
             if (!storeId) return res.status(401).json({ error: 'Store ID requerido en token' });
             
             const customers = await Customer.findAndCountAll({
-                where: { storeId },
+                where: { storeId, statusId: ACTIVE_STATUS_ID },
                 include: [
                     { model: Store, attributes: ['id', 'name'] },
                     { model: Status, attributes: ['id', 'name'] }
@@ -117,7 +120,7 @@ class CustomerController {
 
             const { limit, offset, page } = getPagination(req.query);
             const searchValue = getSearchValue(req.query);
-            const where = { storeId };
+            const where = { storeId, statusId: ACTIVE_STATUS_ID };
 
             if (searchValue) {
                 where[Op.or] = [
@@ -128,7 +131,7 @@ class CustomerController {
             }
 
             const [recordsTotal, customers] = await Promise.all([
-                Customer.count({ where: { storeId } }),
+                Customer.count({ where: { storeId, statusId: ACTIVE_STATUS_ID } }),
                 Customer.findAndCountAll({
                     where,
                     include: [
@@ -306,6 +309,7 @@ class CustomerController {
             const customers = await Customer.findOne({
                 where: {
                     storeId,
+                    statusId: ACTIVE_STATUS_ID,
                     [Op.or]: conditions,
                 },
                 include: [
@@ -363,7 +367,7 @@ class CustomerController {
             if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
             if (customer.storeId !== storeId) return res.status(403).json({ error: 'No tienes acceso a este cliente' });
             
-            await customer.destroy();
+            await customer.update({ statusId: INACTIVE_STATUS_ID });
             res.status(200).json({ message: 'Cliente eliminado' });
         } catch (err) {
             res.status(400).json({ error: err.message });

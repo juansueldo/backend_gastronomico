@@ -6,6 +6,7 @@ import { parseLocaleNumber } from '../utils/numberParser.js';
 
 const MAX_PRODUCT_IMAGE_BYTES = Number(process.env.PRODUCT_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
 const VALID_INVENTORY_UNITS = new Set(['unidad', 'kg', 'gr', 'lt', 'ml']);
+const INACTIVE_STATUS_ID = 2;
 
 function normalizeInventoryUnit(unit) {
     const normalized = String(unit ?? 'unidad').trim().toLowerCase();
@@ -307,7 +308,7 @@ class ProductController {
                 await ImageService.deleteImage(product.image_url);
             }
 
-            await product.destroy();
+            await product.update({ statusId: INACTIVE_STATUS_ID });
 
             res.status(200).json({ message: 'Producto eliminado correctamente' });
         } catch (err) {

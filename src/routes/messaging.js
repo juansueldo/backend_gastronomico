@@ -40,6 +40,10 @@ router.patch('/conversations/:id/read', authRequired, async (req, res) => {
   await MessagingController.markConversationRead(req, res);
 });
 
+router.delete('/conversations/:id', authRequired, async (req, res) => {
+  await MessagingController.deleteConversation(req, res);
+});
+
 router.post('/messages/send', authRequired, async (req, res) => {
   await MessagingController.sendDirectMessage(req, res);
 });

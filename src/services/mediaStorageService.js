@@ -40,9 +40,19 @@ class MediaStorageService {
   }
 
   static extractBase64Data(value, fallbackMime = 'application/octet-stream') {
-    const match = String(value || '').match(/^data:([^;]+);base64,(.+)$/);
-    if (match) return { contentType: match[1], cleanBase64: match[2] };
-    return { contentType: fallbackMime, cleanBase64: String(value || '') };
+    const raw = String(value || '');
+    const match = raw.match(/^data:([^,]+),(.+)$/);
+    if (!match) return { contentType: fallbackMime, cleanBase64: raw.replace(/\s/g, '') };
+
+    const metadata = match[1];
+    const data = match[2];
+    const [contentType] = metadata.split(';');
+    const isBase64 = metadata.split(';').includes('base64');
+
+    return {
+      contentType: contentType || fallbackMime,
+      cleanBase64: isBase64 ? data.replace(/\s/g, '') : Buffer.from(decodeURIComponent(data)).toString('base64'),
+    };
   }
 
   static getExtensionFromContentType(contentType) {

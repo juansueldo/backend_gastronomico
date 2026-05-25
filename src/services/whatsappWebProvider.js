@@ -20,6 +20,17 @@ async function requestGateway(path, options = {}) {
   return payload;
 }
 
+function buildQuery(params = {}) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      searchParams.set(key, String(value));
+    }
+  });
+  const query = searchParams.toString();
+  return query ? `?${query}` : '';
+}
+
 class WhatsappWebProvider {
   static provider = 'whatsapp_web';
 
@@ -56,6 +67,10 @@ class WhatsappWebProvider {
       method: 'POST',
       body: JSON.stringify({ storeId: account.storeId, to, body, media }),
     });
+  }
+
+  static getProfilePicUrl(account, { to }) {
+    return requestGateway(`/internal/sessions/${account.id}/profile-pic${buildQuery({ to })}`);
   }
 }
 
