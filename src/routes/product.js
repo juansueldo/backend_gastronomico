@@ -165,6 +165,18 @@ router.get('/recipe/list', async (req, res) => {
   await ProductController.listRecipes(req, res);
 });
 
+router.post('/ingredient-options/save', async (req, res) => {
+  await ProductController.saveIngredientOptions(req, res);
+});
+
+router.get('/ingredient-options', async (req, res) => {
+  await ProductController.getIngredientOptions(req, res);
+});
+
+router.get('/ingredient-options/list', async (req, res) => {
+  await ProductController.listIngredientOptions(req, res);
+});
+
 router.post('/stock/upsert', async (req, res) => {
   await ProductController.upsertProductStock(req, res);
 });

@@ -5,6 +5,7 @@ import {
   Headquarter,
   Order,
   OrderItem,
+  OrderItemModifier,
   Product,
   Status,
   Store,
@@ -15,6 +16,7 @@ import {
 import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
 import InventoryConsumptionService from '../services/inventoryConsumptionService.js';
+import OrderItemModifierService from '../services/orderItemModifierService.js';
 
 const ORDER_STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'];
 const ORDER_STATUS_TRANSITIONS = {
@@ -95,7 +97,7 @@ async function getOrderWithRelations(orderId, storeId) {
   return Order.findOne({
     where: { id: orderId, storeId },
     include: [
-      { model: OrderItem, include: [Product, { model: Status, attributes: ['id', 'name'] }] },
+      { model: OrderItem, include: [Product, { model: Status, attributes: ['id', 'name'] }, { model: OrderItemModifier }] },
       { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
       { model: Store, attributes: ['id', 'name'] },
       { model: Status, attributes: ['id', 'name'] },
@@ -341,13 +343,21 @@ class OrderController {
         return res.status(400).json({ error: `Precio inválido en el producto ${item.productId}` });
       }
 
-      totalAmount += parsedProductPrice * item.quantity;
+      const modifiersConfig = await OrderItemModifierService.prepareItemModifiers({
+        item,
+        product,
+        storeId,
+      });
+      const unitPrice = parsedProductPrice + modifiersConfig.extraTotal;
+
+      totalAmount += unitPrice * item.quantity;
       itemsData.push({
         headquarterId: resolvedHeadquarterId,
         productId: item.productId,
         quantity: item.quantity,
-        price: parsedProductPrice,
+        price: unitPrice,
         storeId,
+        modifiers: modifiersConfig.modifiers,
       });
     }
 
@@ -375,11 +385,15 @@ class OrderController {
         waiterId: waiterId ?? null,
       }, { transaction });
 
-      await Promise.all(
-        itemsData.map((item) =>
-          OrderItem.create({ orderId: order.id, ...item, statusId: 1 }, { transaction })
-        )
-      );
+      for (const item of itemsData) {
+        const { modifiers, ...orderItemData } = item;
+        const orderItem = await OrderItem.create({ orderId: order.id, ...orderItemData, statusId: 1 }, { transaction });
+        await OrderItemModifierService.createOrderItemModifiers({
+          orderItem,
+          modifiers,
+          transaction,
+        });
+      }
 
       return order;
     });
@@ -445,7 +459,7 @@ class OrderController {
       const orders = await Order.findAndCountAll({
         where: { storeId },
         include: [
-          { model: OrderItem, include: [Product] },
+          { model: OrderItem, include: [Product, { model: OrderItemModifier }] },
           { model: Store, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] },
         ],

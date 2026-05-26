@@ -23,6 +23,8 @@ import OrderItem from './orderItem.js';
 import InventoryItem from './inventoryItem.js';
 import Recipe from './recipe.js';
 import RecipeItem from './recipeItem.js';
+import ProductIngredientOption from './productIngredientOption.js';
+import OrderItemModifier from './orderItemModifier.js';
 import DeliveryZone from './deliveryZone.js';
 import StockMovement from './stockMovement.js';
 import Table from './table.js';
@@ -55,6 +57,8 @@ export {
   InventoryItem,
   Recipe,
   RecipeItem,
+  ProductIngredientOption,
+  OrderItemModifier,
   DeliveryZone,
   StockMovement,
   Table,
@@ -76,6 +80,10 @@ InventoryItem.belongsTo(Product, { foreignKey: 'productId' });
 Product.hasOne(Recipe, { foreignKey: 'productId' });
 Recipe.hasMany(RecipeItem, { foreignKey: 'recipeId' });
 InventoryItem.hasMany(RecipeItem, { foreignKey: 'inventoryItemId' });
+Product.hasMany(ProductIngredientOption, { foreignKey: 'productId' });
+ProductIngredientOption.belongsTo(Product, { foreignKey: 'productId' });
+InventoryItem.hasMany(ProductIngredientOption, { foreignKey: 'inventoryItemId' });
+ProductIngredientOption.belongsTo(InventoryItem, { foreignKey: 'inventoryItemId' });
 
 // Relaciones Plan - PlanPrice - PlanFeatures
 Plan.hasMany(PlanPrice, { foreignKey: 'planId' });
@@ -97,6 +105,10 @@ Waiter.hasMany(Order, { foreignKey: 'waiterId' });
 Order.hasMany(OrderItem, {foreignKey: 'orderId'});
 
 OrderItem.belongsTo(Order, {foreignKey: 'orderId'});
+OrderItem.hasMany(OrderItemModifier, { foreignKey: 'orderItemId' });
+OrderItemModifier.belongsTo(OrderItem, { foreignKey: 'orderItemId' });
+OrderItemModifier.belongsTo(InventoryItem, { foreignKey: 'inventoryItemId' });
+OrderItemModifier.belongsTo(ProductIngredientOption, { foreignKey: 'productIngredientOptionId' });
 
 MessagingAccount.hasMany(Conversation, { foreignKey: 'messagingAccountId' });
 Conversation.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });

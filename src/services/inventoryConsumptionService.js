@@ -1,4 +1,14 @@
-import { InventoryItem, Order, OrderItem, Product, Recipe, RecipeItem, StockMovement } from '../models/index.js';
+import {
+  InventoryItem,
+  Order,
+  OrderItem,
+  OrderItemModifier,
+  Product,
+  ProductIngredientOption,
+  Recipe,
+  RecipeItem,
+  StockMovement,
+} from '../models/index.js';
 
 const ACTIVE_STATUS_ID = 1;
 
@@ -58,11 +68,39 @@ class InventoryConsumptionService {
           throw new Error(`El producto "${product.name}" está marcado como receta pero no tiene ingredientes configurados`);
         }
 
+        const modifiers = await OrderItemModifier.findAll({
+          where: { orderItemId: orderItem.id, storeId, statusId: ACTIVE_STATUS_ID },
+          include: [{ model: InventoryItem }, { model: ProductIngredientOption }],
+          transaction,
+        });
+        const removedInventoryIds = new Set(
+          modifiers
+            .filter((modifier) => modifier.type === 'removed')
+            .map((modifier) => Number(modifier.inventoryItemId))
+            .filter((value) => Number.isInteger(value) && value > 0)
+        );
+        const removedNames = new Set(
+          modifiers
+            .filter((modifier) => modifier.type === 'removed')
+            .map((modifier) => normalizeName(modifier.name))
+            .filter(Boolean)
+        );
+
         for (const recipeItem of recipeItems) {
           const ingredientTemplate = recipeItem.InventoryItem;
           const ingredientName = ingredientTemplate?.name;
           if (!ingredientName) {
             throw new Error(`La receta de "${product.name}" tiene un ingrediente inválido`);
+          }
+          if (removedInventoryIds.has(Number(recipeItem.inventoryItemId)) || removedNames.has(normalizeName(ingredientName))) {
+            movements.push({
+              productId: product.id,
+              inventoryItemId: recipeItem.inventoryItemId,
+              name: ingredientName,
+              quantity: 0,
+              mode: 'removed',
+            });
+            continue;
           }
 
           const inventoryItem = await InventoryItem.findOne({
@@ -96,6 +134,47 @@ class InventoryConsumptionService {
             name: inventoryItem.name,
             quantity: quantityToConsume,
             mode: 'recipe',
+          });
+        }
+
+        const extraModifiers = modifiers.filter((modifier) => modifier.type === 'extra');
+        for (const modifier of extraModifiers) {
+          const option = modifier.ProductIngredientOption;
+          const modifierInventoryItem = modifier.InventoryItem;
+          const ingredientName = modifierInventoryItem?.name ?? modifier.name;
+
+          const inventoryItem = await InventoryItem.findOne({
+            where: {
+              storeId,
+              headquarterId: order.headquarterId,
+              statusId: ACTIVE_STATUS_ID,
+              name: ingredientName,
+            },
+            transaction,
+            lock: transaction?.LOCK?.UPDATE,
+          });
+
+          if (!inventoryItem) {
+            throw new Error(`No hay stock del ingrediente extra "${ingredientName}" en la sede de la orden`);
+          }
+
+          const extraUnitQuantity = Number(option?.extraQuantity ?? modifier.quantity ?? 1);
+          const quantityToConsume = extraUnitQuantity * Number(modifier.quantity) * Number(orderItem.quantity);
+          await this.consumeInventoryItem({
+            inventoryItem,
+            quantity: quantityToConsume,
+            reason: `Orden ${order.order_number} - extra ${ingredientName} (${product.name})`,
+            storeId,
+            headquarterId: order.headquarterId,
+            transaction,
+          });
+
+          movements.push({
+            productId: product.id,
+            inventoryItemId: inventoryItem.id,
+            name: inventoryItem.name,
+            quantity: quantityToConsume,
+            mode: 'extra',
           });
         }
 

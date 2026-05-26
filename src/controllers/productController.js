@@ -1,5 +1,5 @@
 import sequelize from '../models/db.js';
-import { Product, Category, Store, Headquarter, InventoryItem, Recipe, RecipeItem } from "../models/index.js";
+import { Product, Category, Store, Headquarter, InventoryItem, Recipe, RecipeItem, ProductIngredientOption } from "../models/index.js";
 import ImageService from '../services/imageService.js';
 import InventoryConsumptionService from '../services/inventoryConsumptionService.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
@@ -51,6 +51,23 @@ class ProductController {
                 unit: item.InventoryItem?.unit ?? 'unidad',
             })),
             updatedAt: recipe.updatedAt,
+        }));
+    }
+
+    static normalizeModifierRows(rows) {
+        return rows.map((option) => ({
+            id: String(option.id),
+            productId: String(option.productId),
+            inventoryItemId: option.inventoryItemId,
+            name: option.name,
+            unit: option.InventoryItem?.unit ?? option.unit ?? 'unidad',
+            isRemovable: option.isRemovable !== false,
+            isAddable: option.isAddable === true,
+            defaultIncluded: option.defaultIncluded !== false,
+            extraPrice: Number(option.extraPrice ?? 0),
+            extraQuantity: Number(option.extraQuantity ?? 1),
+            maxExtraQuantity: Number(option.maxExtraQuantity ?? 1),
+            statusId: option.statusId,
         }));
     }
 
@@ -438,6 +455,117 @@ class ProductController {
                 include: [{ model: RecipeItem, include: [InventoryItem] }],
             });
             res.json(ProductController.normalizeRecipeRows(recipes));
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async saveIngredientOptions(req, res) {
+        const storeId = req.user?.storeId;
+        if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+
+        try {
+            const { productId, options = [], headquarterId } = req.body;
+            if (!productId) return res.status(400).json({ error: 'productId es requerido' });
+            if (!Array.isArray(options)) return res.status(400).json({ error: 'options debe ser un array' });
+
+            const product = await Product.findOne({ where: { id: productId, storeId } });
+            if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+
+            const result = await sequelize.transaction(async (transaction) => {
+                const resolvedHeadquarterId = await ProductController.resolveHeadquarterId(storeId, headquarterId);
+                await ProductIngredientOption.destroy({ where: { productId: product.id, storeId }, transaction });
+
+                const saved = [];
+                for (const option of options) {
+                    const inventoryItemId = Number(option.inventoryItemId ?? option.inventory_item_id);
+                    const name = String(option.name ?? '').trim();
+
+                    if (!Number.isInteger(inventoryItemId) || inventoryItemId <= 0) {
+                        throw new Error('Cada opcion debe tener inventoryItemId valido');
+                    }
+
+                    const inventoryItem = await InventoryItem.findOne({
+                        where: { id: inventoryItemId, storeId, headquarterId: resolvedHeadquarterId, statusId: 1 },
+                        transaction,
+                    });
+                    if (!inventoryItem) {
+                        throw new Error(`Ingrediente ${inventoryItemId} no encontrado para esta sede`);
+                    }
+
+                    const isRemovable = option.isRemovable ?? option.is_removable ?? true;
+                    const isAddable = option.isAddable ?? option.is_addable ?? false;
+                    const defaultIncluded = option.defaultIncluded ?? option.default_included ?? true;
+                    const extraPrice = Number(option.extraPrice ?? option.extra_price ?? 0);
+                    const extraQuantity = Number(option.extraQuantity ?? option.extra_quantity ?? 1);
+                    const maxExtraQuantity = Number(option.maxExtraQuantity ?? option.max_extra_quantity ?? 1);
+
+                    if (!Number.isFinite(extraPrice) || extraPrice < 0) {
+                        throw new Error('extraPrice debe ser mayor o igual a 0');
+                    }
+                    if (!Number.isFinite(extraQuantity) || extraQuantity <= 0) {
+                        throw new Error('extraQuantity debe ser mayor a 0');
+                    }
+                    if (!Number.isInteger(maxExtraQuantity) || maxExtraQuantity < 0) {
+                        throw new Error('maxExtraQuantity debe ser un entero mayor o igual a 0');
+                    }
+
+                    const created = await ProductIngredientOption.create({
+                        productId: product.id,
+                        inventoryItemId: inventoryItem.id,
+                        name: name || inventoryItem.name,
+                        isRemovable: Boolean(isRemovable),
+                        isAddable: Boolean(isAddable),
+                        defaultIncluded: Boolean(defaultIncluded),
+                        extraPrice,
+                        extraQuantity,
+                        maxExtraQuantity,
+                        storeId,
+                        statusId: 1,
+                    }, { transaction });
+
+                    saved.push({ ...created.toJSON(), InventoryItem: inventoryItem });
+                }
+
+                return ProductController.normalizeModifierRows(saved);
+            });
+
+            res.json({ productId: String(product.id), options: result });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async getIngredientOptions(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const productId = req.query.productId;
+            if (!productId) return res.status(400).json({ error: 'productId es requerido' });
+
+            const options = await ProductIngredientOption.findAll({
+                where: { productId, storeId, statusId: 1 },
+                include: [{ model: InventoryItem }],
+                order: [['id', 'ASC']],
+            });
+            res.json({ productId: String(productId), options: ProductController.normalizeModifierRows(options) });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async listIngredientOptions(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+            const where = { storeId, statusId: 1 };
+            if (req.query.productId) where.productId = Number(req.query.productId);
+            const options = await ProductIngredientOption.findAll({
+                where,
+                include: [{ model: InventoryItem }],
+                order: [['productId', 'ASC'], ['id', 'ASC']],
+            });
+            res.json(ProductController.normalizeModifierRows(options));
         } catch (err) {
             res.status(400).json({ error: err.message });
         }

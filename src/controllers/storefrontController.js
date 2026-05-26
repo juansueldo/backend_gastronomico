@@ -7,13 +7,17 @@ import {
   Headquarter,
   Order,
   OrderItem,
+  OrderItemModifier,
   Product,
+  ProductIngredientOption,
+  InventoryItem,
   Store,
   HeadquarterSchedule
 } from '../models/index.js';
 import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
 import ImageService from '../services/imageService.js';
+import OrderItemModifierService from '../services/orderItemModifierService.js';
 
 const ACTIVE_STATUS_ID = 1;
 const MAX_STORE_IMAGE_BYTES = Number(process.env.STORE_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
@@ -84,6 +88,8 @@ function buildOrderItemsFromRequest(body) {
         return {
           productId: toPositiveInteger(item.productId ?? item.product_id),
           quantity: Number(item.quantity ?? 1),
+          removedIngredients: item.removedIngredients ?? item.removed_ingredients ?? item.removedIngredientIds ?? [],
+          extraIngredients: item.extraIngredients ?? item.extra_ingredients ?? item.extras ?? [],
         };
       }
 
@@ -102,11 +108,19 @@ function normalizeRequestedItems(rawItems) {
     if (!Number.isInteger(item.productId) || item.productId <= 0) return;
     if (!Number.isFinite(item.quantity) || item.quantity <= 0) return;
 
-    const previousQuantity = grouped.get(item.productId) || 0;
-    grouped.set(item.productId, previousQuantity + item.quantity);
+    const key = JSON.stringify({
+      productId: item.productId,
+      removedIngredients: item.removedIngredients ?? [],
+      extraIngredients: item.extraIngredients ?? [],
+    });
+    const previous = grouped.get(key);
+    grouped.set(key, {
+      ...item,
+      quantity: (previous?.quantity ?? 0) + item.quantity,
+    });
   });
 
-  return Array.from(grouped.entries()).map(([productId, quantity]) => ({ productId, quantity }));
+  return Array.from(grouped.values());
 }
 
 function mapStoreOrderType(rawType) {
@@ -450,6 +464,12 @@ class StorefrontController {
             where: selectedHeadquarterId ? { headquarterId: selectedHeadquarterId } : undefined,
             required: false,
           },
+          {
+            model: ProductIngredientOption,
+            where: { statusId: ACTIVE_STATUS_ID },
+            required: false,
+            include: [{ model: InventoryItem, attributes: ['id', 'name', 'unit'] }],
+          },
         ],
         order: [['createdAt', 'DESC']],
       });
@@ -479,6 +499,18 @@ class StorefrontController {
               },
             ]
             : [],
+          ingredientOptions: (product.ProductIngredientOptions ?? []).map((option) => ({
+            id: String(option.id),
+            inventoryItemId: option.inventoryItemId,
+            name: option.name,
+            unit: option.InventoryItem?.unit ?? 'unidad',
+            isRemovable: option.isRemovable !== false,
+            isAddable: option.isAddable === true,
+            defaultIncluded: option.defaultIncluded !== false,
+            extraPrice: Number(option.extraPrice ?? 0),
+            extraQuantity: Number(option.extraQuantity ?? 1),
+            maxExtraQuantity: Number(option.maxExtraQuantity ?? 1),
+          })),
         }));
 
       const categoriesMap = new Map();
@@ -671,7 +703,7 @@ class StorefrontController {
         }
       }
 
-      const productIds = requestedItems.map((item) => item.productId);
+      const productIds = [...new Set(requestedItems.map((item) => item.productId))];
       const products = await Product.findAll({
         where: {
           id: productIds,
@@ -737,20 +769,28 @@ class StorefrontController {
       }
 
       let totalAmount = 0;
-      const orderItemsToCreate = requestedItems.map((item) => {
+      const orderItemsToCreate = [];
+      for (const item of requestedItems) {
         const product = productById.get(item.productId);
         const price = parseLocaleNumber(product.price);
-        totalAmount += price * item.quantity;
+        const modifiersConfig = await OrderItemModifierService.prepareItemModifiers({
+          item,
+          product,
+          storeId: store.id,
+        });
+        const unitPrice = price + modifiersConfig.extraTotal;
+        totalAmount += unitPrice * item.quantity;
 
-        return {
+        orderItemsToCreate.push({
           productId: item.productId,
           quantity: item.quantity,
-          price,
+          price: unitPrice,
           storeId: store.id,
           statusId: ACTIVE_STATUS_ID,
           headquarterId,
-        };
-      });
+          modifiers: modifiersConfig.modifiers,
+        });
+      }
 
       totalAmount = Number(totalAmount.toFixed(2));
       const orderNumber = `PUB-${Date.now()}-${store.id}`;
@@ -780,12 +820,18 @@ class StorefrontController {
           waiterId: null,
         }, { transaction });
 
-        await Promise.all(
-          orderItemsToCreate.map((item) => OrderItem.create({
-            ...item,
+        for (const item of orderItemsToCreate) {
+          const { modifiers, ...orderItemData } = item;
+          const orderItem = await OrderItem.create({
+            ...orderItemData,
             orderId: order.id,
-          }, { transaction }))
-        );
+          }, { transaction });
+          await OrderItemModifierService.createOrderItemModifiers({
+            orderItem,
+            modifiers,
+            transaction,
+          });
+        }
         // No crear notificación aquí, se hará después
         return order;
       });
@@ -794,7 +840,7 @@ class StorefrontController {
         include: [
           {
             model: OrderItem,
-            include: [{ model: Product, attributes: ['id', 'name', 'image_url'] }],
+            include: [{ model: Product, attributes: ['id', 'name', 'image_url'] }, { model: OrderItemModifier }],
           },
           { model: Customer, attributes: ['id', 'name', 'phone'] },
           { model: Headquarter, attributes: ['id', 'name', 'location'] },
