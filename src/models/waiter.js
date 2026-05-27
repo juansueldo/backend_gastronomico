@@ -2,6 +2,7 @@ import { DataTypes } from 'sequelize';
 import sequelize from './db.js';
 import Store from './store.js';
 import Status from './status.js';
+import Headquarter from './headquarter.js';
 
 const Waiter = sequelize.define('Waiter', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
@@ -17,5 +18,6 @@ const Waiter = sequelize.define('Waiter', {
 
 Waiter.belongsTo(Store, { foreignKey: 'storeId', allowNull: false });
 Waiter.belongsTo(Status, { foreignKey: 'statusId', defaultValue: 1 });
+Waiter.belongsTo(Headquarter, { foreignKey: 'headquarterId', allowNull: true });
 
 export default Waiter;

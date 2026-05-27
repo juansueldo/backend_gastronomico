@@ -1,10 +1,26 @@
-import { Waiter, Store, Status } from '../models/index.js';
+import { Waiter, Store, Status, Headquarter } from '../models/index.js';
 import NotificationService from '../services/notificationService.js';
 
 class WaiterController {
+  static async resolveHeadquarterId(headquarterId, storeId) {
+    if (headquarterId === undefined || headquarterId === null || headquarterId === '') return null;
+
+    const parsedHeadquarterId = Number(headquarterId);
+    if (!Number.isInteger(parsedHeadquarterId) || parsedHeadquarterId <= 0) {
+      throw new Error('headquarterId debe ser un entero válido');
+    }
+
+    const headquarter = await Headquarter.findOne({ where: { id: parsedHeadquarterId, storeId } });
+    if (!headquarter) {
+      throw new Error('Sede no encontrada para esta tienda');
+    }
+
+    return parsedHeadquarterId;
+  }
+
   static async create(req, res) {
     try {
-      const { firstname, lastname, email, phone, identification, salary, hire_date, metadata } = req.body;
+      const { firstname, lastname, email, phone, identification, salary, hire_date, metadata, headquarterId } = req.body;
       const storeId = req.user?.storeId;
 
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
@@ -15,8 +31,11 @@ class WaiterController {
       const store = await Store.findByPk(storeId);
       if (!store) return res.status(404).json({ error: 'Tienda no encontrada' });
 
+      const resolvedHeadquarterId = await WaiterController.resolveHeadquarterId(headquarterId, storeId);
+
       const waiter = await Waiter.create({
         storeId,
+        headquarterId: resolvedHeadquarterId,
         firstname,
         lastname,
         email,
@@ -31,6 +50,7 @@ class WaiterController {
       const result = await Waiter.findByPk(waiter.id, {
         include: [
           { model: Store, attributes: ['id', 'name'] },
+          { model: Headquarter, attributes: ['id', 'name', 'location'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
@@ -53,6 +73,7 @@ class WaiterController {
         where: { storeId },
         include: [
           { model: Store, attributes: ['id', 'name'] },
+          { model: Headquarter, attributes: ['id', 'name', 'location'] },
           { model: Status, attributes: ['id', 'name'] }
         ],
         order: [['firstname', 'ASC']]
@@ -74,6 +95,7 @@ class WaiterController {
       const waiter = await Waiter.findByPk(id, {
         include: [
           { model: Store, attributes: ['id', 'name'] },
+          { model: Headquarter, attributes: ['id', 'name', 'location'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
@@ -93,7 +115,7 @@ class WaiterController {
     try {
       const storeId = req.user?.storeId;
       const { id } = req.params;
-      const { firstname, lastname, email, phone, identification, salary, hire_date, metadata } = req.body;
+      const { firstname, lastname, email, phone, identification, salary, hire_date, metadata, headquarterId } = req.body;
 
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
 
@@ -103,20 +125,24 @@ class WaiterController {
         return res.status(403).json({ error: 'No tienes acceso a este mozo' });
       }
 
-      if (firstname) waiter.firstname = firstname;
-      if (lastname) waiter.lastname = lastname;
-      if (email) waiter.email = email;
-      if (phone) waiter.phone = phone;
-      if (identification) waiter.identification = identification;
+      if (firstname !== undefined) waiter.firstname = firstname;
+      if (lastname !== undefined) waiter.lastname = lastname;
+      if (email !== undefined) waiter.email = email;
+      if (phone !== undefined) waiter.phone = phone;
+      if (identification !== undefined) waiter.identification = identification;
       if (salary !== undefined) waiter.salary = salary;
-      if (hire_date) waiter.hire_date = hire_date;
-      if (metadata) waiter.metadata = metadata;
+      if (hire_date !== undefined) waiter.hire_date = hire_date;
+      if (metadata !== undefined) waiter.metadata = metadata;
+      if (headquarterId !== undefined) {
+        waiter.headquarterId = await WaiterController.resolveHeadquarterId(headquarterId, storeId);
+      }
 
       await waiter.save();
 
       const updated = await Waiter.findByPk(id, {
         include: [
           { model: Store, attributes: ['id', 'name'] },
+          { model: Headquarter, attributes: ['id', 'name', 'location'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
@@ -148,6 +174,7 @@ class WaiterController {
       const updated = await Waiter.findByPk(id, {
         include: [
           { model: Store, attributes: ['id', 'name'] },
+          { model: Headquarter, attributes: ['id', 'name', 'location'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
