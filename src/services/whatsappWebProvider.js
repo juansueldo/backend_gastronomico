@@ -69,6 +69,13 @@ class WhatsappWebProvider {
     });
   }
 
+  static reactMessage(account, { messageId, reaction }) {
+    return requestGateway(`/internal/sessions/${account.id}/react`, {
+      method: 'POST',
+      body: JSON.stringify({ storeId: account.storeId, messageId, reaction }),
+    });
+  }
+
   static getProfilePicUrl(account, { to }) {
     return requestGateway(`/internal/sessions/${account.id}/profile-pic${buildQuery({ to })}`);
   }

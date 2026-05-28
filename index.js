@@ -35,7 +35,7 @@ import notificationRoutes from './src/routes/notification.js';
 import messagingRoutes from './src/routes/messaging.js';
 
 const version = process.env.API_VERSION || 'v1';
-const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '30mb';
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '80mb';
 process.removeAllListeners('warning');
 process.on('warning', () => {});
 

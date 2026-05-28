@@ -1,4 +1,5 @@
 import sequelize from '../models/db.js';
+import { Op } from 'sequelize';
 import {
   Customer,
   DeliveryZone,
@@ -192,7 +193,14 @@ class OrderController {
       if (!customerName) return res.status(400).json({ error: 'customerName es requerido si no se proporciona customerId' });
       if (!customerPhone) return res.status(400).json({ error: 'customerPhone es requerido si no se proporciona customerId' });
 
-      const existingCustomer = await Customer.findOne({ where: { phone: customerPhone, storeId } });
+      const customerLookup = {
+        storeId,
+        [Op.or]: [
+          { phone: customerPhone },
+          { name: customerName },
+        ],
+      };
+      const existingCustomer = await Customer.findOne({ where: customerLookup });
       if (existingCustomer) {
         resolvedCustomerId = existingCustomer.id;
       } else {
@@ -495,7 +503,10 @@ class OrderController {
     if (!order) return res.status(404).json({ error: 'Orden no encontrada' });
 
     const transitionError = validateTransition(order.status, status);
-    if (transitionError) {
+    const canFinalizeActiveOrder = req.allowDirectFinalize === true
+      && status === 'completed'
+      && ['pending', 'processing', 'ready'].includes(order.status);
+    if (transitionError && !canFinalizeActiveOrder) {
       return res.status(400).json({ error: transitionError });
     }
 
@@ -538,6 +549,7 @@ class OrderController {
 
   static async finalize(req, res) {
     req.body = { ...(req.body || {}), status: 'completed' };
+    req.allowDirectFinalize = true;
     return OrderController.updateStatus(req, res);
   }
 

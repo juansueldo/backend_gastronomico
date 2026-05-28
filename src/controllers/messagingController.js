@@ -46,8 +46,51 @@ function lidToExternalChatId(value) {
   return digits ? `${digits}@c.us` : null;
 }
 
+function externalChatIdToLid(value) {
+  const chatId = normalizeExternalChatId(value);
+  if (!chatId || isWhatsappLid(chatId)) return null;
+  const digits = normalizePhone(chatId);
+  return digits ? `${digits}@lid` : null;
+}
+
+function expandWhatsappAliases(values = []) {
+  const aliases = [];
+
+  values.forEach((value) => {
+    const chatId = normalizeExternalChatId(value);
+    if (!chatId) return;
+
+    aliases.push(chatId);
+    if (isWhatsappLid(chatId)) {
+      aliases.push(lidToExternalChatId(chatId));
+    } else {
+      aliases.push(externalChatIdToLid(chatId));
+    }
+  });
+
+  return Array.from(new Set(aliases.filter(Boolean)));
+}
+
+function isAccountAlias(account, alias) {
+  const accountPhone = normalizePhone(account?.phone);
+  if (!accountPhone || isWhatsappLid(alias)) return false;
+  return normalizePhone(alias) === accountPhone;
+}
+
 function getInboundPhone(payload) {
+  if (
+    payload.technicalAlias === true
+    || payload.technical_alias === true
+    || isWhatsappLid(payload.originalFrom)
+    || isWhatsappLid(payload.original_from)
+  ) {
+    const contactPhone = normalizePhone(payload.contactPhone || payload.contact_phone || payload.phone);
+    return contactPhone || null;
+  }
+
   const candidates = [
+    payload.contactPhone,
+    payload.contact_phone,
     payload.fromPhone,
     payload.from_phone,
     payload.phone,
@@ -62,6 +105,30 @@ function getInboundPhone(payload) {
   }
 
   return null;
+}
+
+function getInboundAliasIds(payload = {}, account = null) {
+  const rawAliases = Array.isArray(payload.aliasIds)
+    ? payload.aliasIds
+    : Array.isArray(payload.alias_ids)
+      ? payload.alias_ids
+      : [];
+
+  return expandWhatsappAliases([
+    payload.externalChatId,
+    payload.external_chat_id,
+    payload.from,
+    payload.originalFrom,
+    payload.original_from,
+    payload.originalAuthor,
+    payload.original_author,
+    payload.author,
+    payload.contactId,
+    payload.contact_id,
+    payload.contactPhone ? toExternalChatId(payload.contactPhone) : null,
+    payload.contact_phone ? toExternalChatId(payload.contact_phone) : null,
+    ...rawAliases,
+  ]).filter((alias) => !isAccountAlias(account, alias));
 }
 
 function getInboundExternalChatId(payload, phone = null) {
@@ -91,16 +158,16 @@ function getGatewayAliasIds(payload = {}) {
       ? payload.alias_ids
       : [];
 
-  return Array.from(new Set([
+  return expandWhatsappAliases([
     payload.chatId,
     payload.chat_id,
     payload.contactId,
     payload.contact_id,
+    payload.contactPhone ? toExternalChatId(payload.contactPhone) : null,
+    payload.contact_phone ? toExternalChatId(payload.contact_phone) : null,
     payload.to,
     ...rawAliases,
-  ]
-    .map((alias) => normalizeExternalChatId(alias))
-    .filter(Boolean)));
+  ]);
 }
 
 function buildProviderMessageId(account, payload, phone, body) {
@@ -184,6 +251,32 @@ function getMediaMetadata(payload) {
     mediaSize: payload.mediaSize || payload.media_size || payload.size || payload.media?.size || null,
     caption: payload.caption || payload.media?.caption || null,
   };
+}
+
+function getMessageReactions(message) {
+  const rawPayload = message?.rawPayload && typeof message.rawPayload === 'object' ? message.rawPayload : {};
+  const reactions = rawPayload.reactions && typeof rawPayload.reactions === 'object' ? rawPayload.reactions : {};
+  return { ...reactions };
+}
+
+async function updateMessageReaction(message, reaction, actor = 'me') {
+  const rawPayload = message.rawPayload && typeof message.rawPayload === 'object' ? message.rawPayload : {};
+  const reactions = getMessageReactions(message);
+
+  if (reaction) {
+    reactions[actor] = reaction;
+  } else {
+    delete reactions[actor];
+  }
+
+  await message.update({
+    rawPayload: {
+      ...rawPayload,
+      reactions,
+    },
+  });
+
+  return message;
 }
 
 async function storeIncomingMedia(storeId, mediaMetadata) {
@@ -384,16 +477,19 @@ async function ensureWhatsappContactAlias({ storeId, account, customerId, identi
   return contact;
 }
 
-async function findExistingConversationForAlias({ storeId, account, externalChatId, name, profileImageUrl }) {
-  if (!externalChatId) return null;
+async function findExistingConversationForAlias({ storeId, account, externalChatId, aliasIds = [], name, profileImageUrl }) {
+  const aliases = expandWhatsappAliases([externalChatId, ...aliasIds])
+    .filter((alias) => !isAccountAlias(account, alias));
+  if (aliases.length === 0) return null;
 
   const existingContact = await Contact.findOne({
     where: {
       storeId,
       instanceId: account.instanceId,
       type: 'whatsapp',
-      identifier: externalChatId,
+      identifier: { [Op.in]: aliases },
     },
+    order: [['updatedAt', 'DESC']],
   });
 
   if (existingContact) {
@@ -450,7 +546,7 @@ async function findExistingConversationForAlias({ storeId, account, externalChat
     storeId,
     account,
     customerId: conversation.customerId,
-    identifier: externalChatId,
+    identifier: aliases[0],
   });
 
   if (contact && conversation.contactId !== contact.id) {
@@ -504,23 +600,33 @@ async function getConversationRecipientIds(conversation, account) {
   ].filter(Boolean)));
 }
 
-async function findOrCreateConversation({ storeId, account, phone, externalChatId: rawExternalChatId, name, profileImageUrl }) {
+async function findOrCreateConversation({ storeId, account, phone, externalChatId: rawExternalChatId, aliasIds = [], name, profileImageUrl }) {
   const externalChatId = normalizeExternalChatId(rawExternalChatId) || toExternalChatId(phone);
   if (!externalChatId) throw new Error('Identificador de conversación inválido');
 
   const normalizedPhone = normalizePhone(phone);
-  if (!normalizedPhone && isWhatsappLid(externalChatId)) {
-    const existingAlias = await findExistingConversationForAlias({
+  const expandedAliasIds = expandWhatsappAliases([
+    externalChatId,
+    normalizedPhone ? toExternalChatId(normalizedPhone) : null,
+    ...aliasIds,
+  ]).filter((alias) => !isAccountAlias(account, alias));
+  const existingAlias = await findExistingConversationForAlias({
+    storeId,
+    account,
+    externalChatId,
+    aliasIds: expandedAliasIds,
+    name,
+    profileImageUrl,
+  });
+
+  if (existingAlias?.conversation) {
+    await Promise.all(expandedAliasIds.map((aliasId) => ensureWhatsappContactAlias({
       storeId,
       account,
-      externalChatId,
-      name,
-      profileImageUrl,
-    });
-
-    if (existingAlias?.conversation) {
-      return existingAlias.conversation;
-    }
+      customerId: existingAlias.conversation.customerId,
+      identifier: aliasId,
+    })));
+    return existingAlias.conversation;
   }
 
   const { customer, contact } = await findOrCreateCustomerContact({
@@ -553,6 +659,13 @@ async function findOrCreateConversation({ storeId, account, phone, externalChatI
   if (conversation.customerId !== customer.id || conversation.contactId !== contact.id) {
     await conversation.update({ customerId: customer.id, contactId: contact.id });
   }
+
+  await Promise.all(expandedAliasIds.map((aliasId) => ensureWhatsappContactAlias({
+    storeId,
+    account,
+    customerId: customer.id,
+    identifier: aliasId,
+  })));
 
   return conversation;
 }
@@ -761,6 +874,39 @@ class MessagingController {
     }
   }
 
+  static async createConversation(req, res) {
+    try {
+      const storeId = req.user?.storeId;
+      if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+
+      const { phone, customerId, name } = req.body;
+      const account = await getActiveAccount(storeId);
+      let targetPhone = phone;
+      let customerName = name;
+
+      if (!targetPhone && customerId) {
+        const customer = await Customer.findOne({ where: { id: customerId, storeId } });
+        if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
+        targetPhone = customer.phone;
+        customerName = customerName || customer.name;
+      }
+
+      if (!targetPhone) return res.status(400).json({ error: 'phone o customerId es requerido' });
+
+      const conversation = await findOrCreateConversation({
+        storeId,
+        account,
+        phone: targetPhone,
+        name: customerName,
+      });
+      const updatedConversation = await loadConversation(conversation.id, storeId);
+
+      res.status(201).json({ conversation: updatedConversation });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
   static async sendConversationMessage(req, res) {
     try {
       const storeId = req.user?.storeId;
@@ -896,6 +1042,38 @@ class MessagingController {
     }
   }
 
+  static async reactMessage(req, res) {
+    try {
+      const storeId = req.user?.storeId;
+      if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+
+      const { reaction = '' } = req.body;
+      const message = await Message.findOne({
+        where: { id: req.params.messageId, storeId },
+        include: [{ model: MessagingAccount, attributes: ['id', 'provider', 'storeId'] }],
+      });
+      if (!message) return res.status(404).json({ error: 'Mensaje no encontrado' });
+      if (!message.providerMessageId) return res.status(400).json({ error: 'El mensaje no tiene id de proveedor para reaccionar' });
+
+      const account = message.MessagingAccount || await MessagingAccount.findOne({
+        where: { id: message.messagingAccountId, storeId },
+      });
+      if (!account) return res.status(404).json({ error: 'Cuenta de mensajería no encontrada' });
+
+      await MessagingProvider.forAccount(account).reactMessage(account, {
+        messageId: message.providerMessageId,
+        reaction,
+      });
+
+      await updateMessageReaction(message, reaction, 'me');
+      MessagingNotifier.messageReactionChanged(storeId, message);
+
+      res.status(200).json({ message });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
   static async deleteConversation(req, res) {
     try {
       const storeId = req.user?.storeId;
@@ -973,28 +1151,53 @@ class MessagingController {
       }
 
       if (type === 'message.received') {
-        if (isOutboundGatewayMessage(payload)) {
-          return res.status(200).json({ ok: true, ignored: 'outbound_echo' });
-        }
-
+        const isOutbound = isOutboundGatewayMessage(payload);
         const phone = getInboundPhone(payload);
+        const inboundAliasIds = getInboundAliasIds(payload, account);
         const externalChatId = getInboundExternalChatId(payload, phone);
-        if (!phone && !externalChatId) {
+        if (!phone && !externalChatId && inboundAliasIds.length === 0) {
           return res.status(200).json({ ok: true, ignored: 'unresolved_sender' });
         }
 
-        const conversation = await findOrCreateConversation({
-          storeId,
-          account,
-          phone,
-          externalChatId,
-          name: payload.notifyName,
-          profileImageUrl: payload.profilePicUrl,
-        });
         const messageType = normalizeMessageType(payload.type || payload.mediaType || payload.media_mime || payload.mimetype);
         const mediaMetadata = await storeIncomingMedia(storeId, getMediaMetadata(payload));
         const body = getMessageBody(payload, messageType, mediaMetadata);
         const providerMessageId = buildProviderMessageId(account, payload, phone, body);
+        const existingMessage = await Message.findOne({
+          where: {
+            storeId,
+            providerMessageId,
+            messagingAccountId: account.id,
+          },
+        });
+        const conversation = existingMessage
+          ? await Conversation.findOne({
+            where: {
+              id: existingMessage.conversationId,
+              storeId,
+              messagingAccountId: account.id,
+            },
+          })
+          : await findOrCreateConversation({
+          storeId,
+          account,
+          phone,
+          externalChatId: externalChatId || inboundAliasIds[0],
+          aliasIds: inboundAliasIds,
+          name: payload.notifyName,
+          profileImageUrl: payload.profilePicUrl,
+        });
+        if (!conversation) {
+          return res.status(200).json({ ok: true, ignored: 'unresolved_conversation' });
+        }
+        if (conversation.customerId && inboundAliasIds.length > 0) {
+          await Promise.all(inboundAliasIds.map((aliasId) => ensureWhatsappContactAlias({
+            storeId,
+            account,
+            customerId: conversation.customerId,
+            identifier: aliasId,
+          })));
+        }
 
         const [message, wasCreated] = await Message.findOrCreate({
           where: {
@@ -1008,11 +1211,11 @@ class MessagingController {
             messagingAccountId: account.id,
             provider: account.provider,
             providerMessageId,
-            direction: 'inbound',
+            direction: isOutbound ? 'outbound' : 'inbound',
             type: messageType,
             body,
             mediaUrl: mediaMetadata.mediaUrl,
-            status: 'received',
+            status: isOutbound ? 'sent' : 'received',
             sentAt: payload.timestamp ? new Date(payload.timestamp * 1000) : new Date(),
             rawPayload: {
               ...payload,
@@ -1021,8 +1224,8 @@ class MessagingController {
           },
         });
 
-        const updatedConversation = await updateConversationAfterMessage(conversation, message, wasCreated);
-        if (wasCreated) {
+        const updatedConversation = await updateConversationAfterMessage(conversation, message, wasCreated && !isOutbound);
+        if (wasCreated && !isOutbound) {
           try {
             await NotificationService.createStoreNotification(
               storeId,
@@ -1040,6 +1243,9 @@ class MessagingController {
             console.error('Error creando notificación de mensaje entrante:', notificationErr);
           }
           MessagingNotifier.messageReceived(storeId, message, updatedConversation);
+          MessagingNotifier.conversationUpdated(storeId, updatedConversation);
+        } else if (wasCreated) {
+          MessagingNotifier.messageSent(storeId, message, updatedConversation);
           MessagingNotifier.conversationUpdated(storeId, updatedConversation);
         }
         return res.status(200).json({ ok: true });
@@ -1060,9 +1266,38 @@ class MessagingController {
             status,
             deliveredAt: status === 'delivered' ? new Date() : message.deliveredAt,
             readAt: status === 'read' ? new Date() : message.readAt,
-            rawPayload: payload,
+            rawPayload: {
+              ...(message.rawPayload && typeof message.rawPayload === 'object' ? message.rawPayload : {}),
+              ack: payload,
+            },
           });
           MessagingNotifier.messageStatusChanged(storeId, message);
+        }
+
+        return res.status(200).json({ ok: true });
+      }
+
+      if (type === 'message.reaction') {
+        const targetProviderMessageId = payload.messageId || payload.message_id || payload.msgId || payload.msg_id;
+        if (!targetProviderMessageId) {
+          return res.status(200).json({ ok: true, ignored: 'missing_message_id' });
+        }
+
+        const message = await Message.findOne({
+          where: {
+            storeId,
+            messagingAccountId: account.id,
+            providerMessageId: targetProviderMessageId,
+          },
+        });
+
+        if (message) {
+          const senderPhone = normalizePhone(payload.senderId);
+          const actor = senderPhone && senderPhone === normalizePhone(account.phone)
+            ? 'me'
+            : senderPhone || String(payload.senderId || 'contact');
+          await updateMessageReaction(message, payload.reaction || '', actor);
+          MessagingNotifier.messageReactionChanged(storeId, message);
         }
 
         return res.status(200).json({ ok: true });

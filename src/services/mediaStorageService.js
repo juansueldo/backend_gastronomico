@@ -56,6 +56,7 @@ class MediaStorageService {
   }
 
   static getExtensionFromContentType(contentType) {
+    const normalizedContentType = String(contentType || '').split(';')[0].trim().toLowerCase();
     const extensionByType = {
       'image/jpeg': '.jpg',
       'image/jpg': '.jpg',
@@ -71,7 +72,7 @@ class MediaStorageService {
       'audio/wav': '.wav',
       'application/pdf': '.pdf',
     };
-    return extensionByType[String(contentType || '').toLowerCase()] || '.bin';
+    return extensionByType[normalizedContentType] || '.bin';
   }
 
   static sanitizeFilename(filename) {
@@ -103,7 +104,7 @@ class MediaStorageService {
     contentType = 'application/octet-stream',
   }) {
     const extracted = this.extractBase64Data(base64String, contentType);
-    const finalContentType = extracted.contentType || contentType;
+    const finalContentType = String(extracted.contentType || contentType).split(';')[0].trim() || 'application/octet-stream';
     const finalFilename = this.ensureFilename(filename, finalContentType);
     const buffer = Buffer.from(extracted.cleanBase64, 'base64');
 

@@ -33,6 +33,12 @@ class MessagingNotifier {
   static messageStatusChanged(storeId, message) {
     this.emit(storeId, 'messaging_message_status_changed', { message });
   }
+
+  static messageReactionChanged(storeId, message) {
+    this.emit(storeId, 'messaging_message_reaction_changed', {
+      message: message?.toJSON ? message.toJSON() : message,
+    });
+  }
 }
 
 export default MessagingNotifier;

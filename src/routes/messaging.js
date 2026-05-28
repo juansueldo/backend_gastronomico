@@ -36,6 +36,10 @@ router.post('/conversations/:id/messages', authRequired, async (req, res) => {
   await MessagingController.sendConversationMessage(req, res);
 });
 
+router.post('/messages/:messageId/reactions', authRequired, async (req, res) => {
+  await MessagingController.reactMessage(req, res);
+});
+
 router.patch('/conversations/:id/read', authRequired, async (req, res) => {
   await MessagingController.markConversationRead(req, res);
 });
