@@ -160,7 +160,7 @@ class AuthController {
         const store = user.storeId ? await Store.findOne({ where: { id: user.storeId } }) : null;
         const subscription = user.storeId
           ? await Subscription.findOne({
-              where: { storeId: user.storeId, statusId: 1 },
+              where: { storeId: user.storeId, statusId: 1, payment: 1 },
               include: [
                 { model: Plan, attributes: ['id', 'name', 'description', 'isFree', 'billingCycleId'] },
                 { model: Status, attributes: ['id', 'name'] },

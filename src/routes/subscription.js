@@ -254,6 +254,14 @@ router.post('/', authRequired, async (req, res) => {
   await SubscriptionController.create(req, res);
 });
 
+router.post('/mercadopago/preapproval', authRequired, async (req, res) => {
+  await SubscriptionController.createMercadoPagoPreapproval(req, res);
+});
+
+router.post('/mercadopago/webhook', async (req, res) => {
+  await SubscriptionController.mercadoPagoWebhook(req, res);
+});
+
 router.get('/', authRequired, async (req, res) => {
   await SubscriptionController.getAll(req, res);
 });
@@ -272,6 +280,10 @@ router.patch('/:id/payment', authRequired, async (req, res) => {
 
 router.patch('/:id/status', authRequired, async (req, res) => {
   await SubscriptionController.updateStatus(req, res);
+});
+
+router.post('/:id/cancel', authRequired, async (req, res) => {
+  await SubscriptionController.cancel(req, res);
 });
 
 router.delete('/:id', authRequired, async (req, res) => {

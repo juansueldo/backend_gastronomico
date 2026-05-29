@@ -9,6 +9,15 @@ const Subscription = sequelize.define('Subscription', {
   startDate: { type: DataTypes.DATE, allowNull: false },
   endDate: { type: DataTypes.DATE, allowNull: false },
   payment: { type: DataTypes.SMALLINT, allowNull: false, defaultValue: 0 }, // 0: pendiente, 1: pagado, 2: rechazado
+  provider: { type: DataTypes.STRING, allowNull: true },
+  providerSubscriptionId: { type: DataTypes.STRING, allowNull: true },
+  providerStatus: { type: DataTypes.STRING, allowNull: true },
+  initPoint: { type: DataTypes.TEXT, allowNull: true },
+  payerEmail: { type: DataTypes.STRING, allowNull: true },
+  lastPaymentId: { type: DataTypes.STRING, allowNull: true },
+  lastWebhookAt: { type: DataTypes.DATE, allowNull: true },
+  cancelledAt: { type: DataTypes.DATE, allowNull: true },
+  metadata: { type: DataTypes.JSON, allowNull: true },
 });
 
 Subscription.belongsTo(Plan, { foreignKey: 'planId' });
