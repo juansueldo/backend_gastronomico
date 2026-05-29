@@ -28,6 +28,10 @@ router.get('/conversations', authRequired, async (req, res) => {
   await MessagingController.listConversations(req, res);
 });
 
+router.post('/conversations', authRequired, async (req, res) => {
+  await MessagingController.createConversation(req, res);
+});
+
 router.get('/conversations/:id/messages', authRequired, async (req, res) => {
   await MessagingController.listMessages(req, res);
 });

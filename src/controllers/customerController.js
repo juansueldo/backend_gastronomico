@@ -120,7 +120,12 @@ class CustomerController {
 
             const { limit, offset, page } = getPagination(req.query);
             const searchValue = getSearchValue(req.query);
-            const where = { storeId, statusId: ACTIVE_STATUS_ID };
+            const visibleCustomersWhere = {
+                storeId,
+                statusId: ACTIVE_STATUS_ID,
+                name: { [Op.notILike]: 'Mesa %' },
+            };
+            const where = { ...visibleCustomersWhere };
 
             if (searchValue) {
                 where[Op.or] = [
@@ -131,7 +136,7 @@ class CustomerController {
             }
 
             const [recordsTotal, customers] = await Promise.all([
-                Customer.count({ where: { storeId, statusId: ACTIVE_STATUS_ID } }),
+                Customer.count({ where: visibleCustomersWhere }),
                 Customer.findAndCountAll({
                     where,
                     include: [

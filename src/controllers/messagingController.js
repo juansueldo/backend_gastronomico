@@ -84,8 +84,18 @@ function getInboundPhone(payload) {
     || isWhatsappLid(payload.originalFrom)
     || isWhatsappLid(payload.original_from)
   ) {
-    const contactPhone = normalizePhone(payload.contactPhone || payload.contact_phone || payload.phone);
-    return contactPhone || null;
+    const contactPhone = [
+      payload.contactPhone,
+      payload.contact_phone,
+      payload.fromPhone,
+      payload.from_phone,
+      payload.phone,
+      payload.externalChatId,
+      payload.external_chat_id,
+      payload.from,
+    ].find((candidate) => candidate && !isWhatsappLid(candidate) && normalizePhone(candidate));
+    const normalizedContactPhone = normalizePhone(contactPhone);
+    return normalizedContactPhone || null;
   }
 
   const candidates = [
@@ -395,6 +405,25 @@ async function getActiveAccount(storeId) {
   return account;
 }
 
+async function resolveUniqueCustomerName({ storeId, baseName, phone, identifier }) {
+  const fallback = normalizePhone(phone) || normalizePhone(identifier) || normalizeExternalChatId(identifier) || 'Cliente WhatsApp';
+  const cleanBaseName = String(baseName || fallback).trim() || fallback;
+  const suffixSource = normalizePhone(phone) || normalizePhone(identifier) || String(identifier || '').replace(/\W+/g, '');
+  const suffix = suffixSource ? suffixSource.slice(-4) : null;
+  const candidates = [
+    cleanBaseName,
+    suffix ? `${cleanBaseName} ${suffix}` : null,
+    suffix ? `${cleanBaseName} (${suffix})` : null,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const existing = await Customer.findOne({ where: { name: candidate } });
+    if (!existing) return candidate;
+  }
+
+  return `${cleanBaseName} ${Date.now().toString(36)}`;
+}
+
 async function findOrCreateCustomerContact({ storeId, account, phone, identifier, name, profileImageUrl }) {
   const normalizedPhone = normalizePhone(phone);
   const contactIdentifier = normalizedPhone || normalizeExternalChatId(identifier);
@@ -414,21 +443,54 @@ async function findOrCreateCustomerContact({ storeId, account, phone, identifier
     customer = await Customer.findOne({ where: { storeId, phone: normalizedPhone } });
   }
   if (!customer) {
-    customer = await Customer.create({
+    const customerName = await resolveUniqueCustomerName({
       storeId,
-      name: name || normalizedPhone || contactIdentifier,
+      baseName: name,
       phone: normalizedPhone,
-      statusId: 1,
-      metadata: {
-        ...(profileImageUrl ? { whatsappProfileImageUrl: profileImageUrl } : {}),
-        ...(!normalizedPhone ? { whatsappExternalChatId: contactIdentifier } : {}),
-      },
+      identifier: contactIdentifier,
     });
-  } else if (profileImageUrl) {
+
+    try {
+      customer = await Customer.create({
+        storeId,
+        name: customerName,
+        phone: normalizedPhone,
+        statusId: 1,
+        metadata: {
+          ...(profileImageUrl ? { whatsappProfileImageUrl: profileImageUrl } : {}),
+          ...(!normalizedPhone ? { whatsappExternalChatId: contactIdentifier } : {}),
+          ...(name && name !== customerName ? { whatsappNotifyName: name } : {}),
+        },
+      });
+    } catch (err) {
+      if (err?.name !== 'SequelizeUniqueConstraintError') throw err;
+
+      const fallbackName = await resolveUniqueCustomerName({
+        storeId,
+        baseName: name || normalizedPhone || contactIdentifier,
+        phone: normalizedPhone,
+        identifier: `${contactIdentifier}-${Date.now()}`,
+      });
+      customer = await Customer.create({
+        storeId,
+        name: fallbackName,
+        phone: normalizedPhone,
+        statusId: 1,
+        metadata: {
+          ...(profileImageUrl ? { whatsappProfileImageUrl: profileImageUrl } : {}),
+          ...(!normalizedPhone ? { whatsappExternalChatId: contactIdentifier } : {}),
+          ...(name ? { whatsappNotifyName: name } : {}),
+        },
+      });
+    }
+  } else if (profileImageUrl || (normalizedPhone && customer.phone !== normalizedPhone) || customer.statusId !== 1) {
     await customer.update({
+      ...(normalizedPhone && customer.phone !== normalizedPhone ? { phone: normalizedPhone } : {}),
+      ...(customer.statusId !== 1 ? { statusId: 1 } : {}),
       metadata: {
         ...(customer.metadata || {}),
-        whatsappProfileImageUrl: profileImageUrl,
+        ...(profileImageUrl ? { whatsappProfileImageUrl: profileImageUrl } : {}),
+        ...(name ? { whatsappNotifyName: name } : {}),
       },
     });
   }
@@ -620,6 +682,14 @@ async function findOrCreateConversation({ storeId, account, phone, externalChatI
   });
 
   if (existingAlias?.conversation) {
+    if (normalizedPhone && existingAlias.conversation.customerId) {
+      const existingCustomer = await Customer.findOne({
+        where: { id: existingAlias.conversation.customerId, storeId },
+      });
+      if (existingCustomer && existingCustomer.phone !== normalizedPhone) {
+        await existingCustomer.update({ phone: normalizedPhone });
+      }
+    }
     await Promise.all(expandedAliasIds.map((aliasId) => ensureWhatsappContactAlias({
       storeId,
       account,
@@ -1305,7 +1375,15 @@ class MessagingController {
 
       return res.status(400).json({ error: `Evento no soportado: ${type}` });
     } catch (err) {
-      res.status(400).json({ error: err.message });
+      res.status(400).json({
+        error: err.message,
+        details: err.errors?.map((detail) => ({
+          message: detail.message,
+          path: detail.path,
+          value: detail.value,
+          type: detail.type,
+        })),
+      });
     }
   }
 }
