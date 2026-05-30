@@ -44,7 +44,7 @@ class PlanPriceController {
       const prices = await PlanPrice.findAll({
         where: { planId },
         include: [
-          { model: Plan, attributes: ['id', 'name', 'slug'] },
+          { model: Plan, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
@@ -59,7 +59,7 @@ class PlanPriceController {
     try {
       const prices = await PlanPrice.findAndCountAll({
         include: [
-          { model: Plan, attributes: ['id', 'name', 'slug'] },
+          { model: Plan, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] }
         ],
         order: [['createdAt', 'DESC']]
@@ -77,7 +77,7 @@ class PlanPriceController {
 
       const planPrice = await PlanPrice.findByPk(id, {
         include: [
-          { model: Plan, attributes: ['id', 'name', 'slug'] },
+          { model: Plan, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });
@@ -98,14 +98,14 @@ class PlanPriceController {
       const planPrice = await PlanPrice.findByPk(id);
       if (!planPrice) return res.status(404).json({ error: 'Precio de plan no encontrado' });
 
-      if (price) planPrice.price = price;
+      if (price !== undefined) planPrice.price = price;
       if (currency) planPrice.currency = currency;
 
       await planPrice.save();
 
       const updated = await PlanPrice.findByPk(id, {
         include: [
-          { model: Plan, attributes: ['id', 'name', 'slug'] },
+          { model: Plan, attributes: ['id', 'name'] },
           { model: Status, attributes: ['id', 'name'] }
         ]
       });

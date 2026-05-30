@@ -18,6 +18,17 @@ async function generateToken(user) {
     return token;
 }
 
+async function generateAdminToken(admin) {
+    const payload = {
+        id: admin.id,
+        email: admin.email,
+        role: admin.role,
+        type: 'admin',
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '12h' });
+    return token;
+}
+
 /**
  * Valida el token JWT y extrae los datos
  * @param {String} token - Token JWT
@@ -44,4 +55,4 @@ function extractToken(authHeader) {
     return authHeader.split(' ')[1];
 }
 
-export { generateToken, verifyToken, extractToken };
+export { generateToken, generateAdminToken, verifyToken, extractToken };

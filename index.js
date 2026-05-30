@@ -33,6 +33,7 @@ import headquarterRoutes from './src/routes/headquarter.js';
 import storefrontRoutes from './src/routes/storefront.js';
 import notificationRoutes from './src/routes/notification.js';
 import messagingRoutes from './src/routes/messaging.js';
+import adminRoutes from './src/routes/admin.js';
 
 const version = process.env.API_VERSION || 'v1';
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '80mb';
@@ -84,6 +85,7 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 
 // Rutas públicas (sin autenticación)
 app.use(`/${version}/auth`, authRoutes);
+app.use(`/${version}/admin`, adminRoutes);
 app.use(`/${version}/store`, storefrontRoutes);
 
 // Rutas con autenticación opcional (GET públicas, CREATE protegidas en la ruta)

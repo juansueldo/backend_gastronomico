@@ -67,10 +67,10 @@ class PlanFeaturesController {
             if (!pf) return res.status(404).json({ error: 'Característica no encontrada' });
             
             await pf.update({
-                ...(feature && { feature }),
-                ...(description && { description }),
-                ...(key && { key }),
-                ...(value && { value }),
+                ...(feature !== undefined && { feature }),
+                ...(description !== undefined && { description }),
+                ...(key !== undefined && { key }),
+                ...(value !== undefined && { value }),
             });
             
             const updated = await PlanFeatures.findByPk(req.params.id, {

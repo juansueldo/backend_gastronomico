@@ -35,6 +35,9 @@ import HeadquarterSchedule from './headquarterSchedule.js';
 import MessagingAccount from './messagingAccount.js';
 import Conversation from './conversation.js';
 import Message from './message.js';
+import Admin from './admin.js';
+import Addon from './addon.js';
+import AddonPrice from './addonPrice.js';
 
 export {
   Status,
@@ -70,6 +73,9 @@ export {
   MessagingAccount,
   Conversation,
   Message,
+  Admin,
+  Addon,
+  AddonPrice,
   sequelize
 };
 
@@ -91,6 +97,16 @@ PlanPrice.belongsTo(Plan, { foreignKey: 'planId' });
 
 Plan.hasMany(PlanFeatures, { foreignKey: 'planId' });
 PlanFeatures.belongsTo(Plan, { foreignKey: 'planId' });
+
+Plan.hasMany(Addon, { foreignKey: 'planId' });
+Addon.hasMany(AddonPrice, { foreignKey: 'addonId' });
+
+Store.hasMany(User, { foreignKey: 'storeId' });
+
+Store.hasMany(Subscription, { foreignKey: 'storeId' });
+
+BillingCycle.hasMany(Subscription, { foreignKey: 'billingCycleId' });
+Subscription.belongsTo(BillingCycle, { foreignKey: 'billingCycleId' });
 
 // Relaciones Table - Waiter - Order
 Waiter.hasMany(Table, { foreignKey: 'waiterId', allowNull: true });
@@ -137,6 +153,26 @@ async function ensureSystemStatuses() {
   }
 }
 
+async function ensureInitialAdmin() {
+  const count = await Admin.count();
+  if (count > 0) return;
+
+  const email = process.env.ADMIN_EMAIL || (process.env.NODE_ENV === 'production' ? null : 'admin@comiio.local');
+  const password = process.env.ADMIN_PASSWORD || (process.env.NODE_ENV === 'production' ? null : '123456');
+
+  if (!email || !password) return;
+
+  const bcrypt = await import('bcrypt');
+  await Admin.create({
+    firstname: process.env.ADMIN_FIRSTNAME || 'Administrador',
+    lastname: process.env.ADMIN_LASTNAME || 'Comiio',
+    email,
+    password: await bcrypt.default.hash(password, 10),
+    role: 'owner',
+    statusId: 1,
+  });
+}
+
 async function ensureStoreSalesChannelColumns() {
   const queryInterface = sequelize.getQueryInterface();
 
@@ -172,4 +208,5 @@ export async function syncModels() {
   await sequelize.sync({ alter: true });
   await ensureStoreSalesChannelColumns();
   await ensureSystemStatuses();
+  await ensureInitialAdmin();
 }
