@@ -42,30 +42,34 @@ process.on('warning', () => {});
 
 
 const app = express();
-// Middleware JSON
-app.use(express.json({ limit: requestBodyLimit }));
-app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',')
+  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
   : [];
+const allowAllOrigins = allowedOrigins.includes('*');
 
 const corsOptions = {
   origin: (origin, callback) => {
     // Permitir requests sin origin (Postman, curl, mobile apps)
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.includes(origin)) {
+    if (allowAllOrigins || allowedOrigins.includes(origin)) {
       return callback(null, true);
-    } else {
-      return callback(new Error('Not allowed by CORS'));
     }
+
+    return callback(null, false);
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 204,
 };
 
 // Middleware CORS
 app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
+
+// Middleware JSON
+app.use(express.json({ limit: requestBodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: requestBodyLimit }));
 
 if (process.env.NODE_ENV !== 'production') {
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
