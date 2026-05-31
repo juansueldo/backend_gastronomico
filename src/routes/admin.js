@@ -88,4 +88,20 @@ router.get('/subscriptions', adminAuthRequired, async (req, res) => {
   await AdminController.subscriptions(req, res);
 });
 
+router.get('/todos', adminAuthRequired, async (req, res) => {
+  await AdminController.todos(req, res);
+});
+
+router.post('/todos', adminAuthRequired, async (req, res) => {
+  await AdminController.createTodo(req, res);
+});
+
+router.patch('/todos/:id', adminAuthRequired, async (req, res) => {
+  await AdminController.updateTodo(req, res);
+});
+
+router.delete('/todos/:id', adminAuthRequired, async (req, res) => {
+  await AdminController.deleteTodo(req, res);
+});
+
 export default router;

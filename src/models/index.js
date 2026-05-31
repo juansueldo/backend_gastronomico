@@ -36,6 +36,7 @@ import MessagingAccount from './messagingAccount.js';
 import Conversation from './conversation.js';
 import Message from './message.js';
 import Admin from './admin.js';
+import AdminTodo from './adminTodo.js';
 import Addon from './addon.js';
 import AddonPrice from './addonPrice.js';
 
@@ -74,6 +75,7 @@ export {
   Conversation,
   Message,
   Admin,
+  AdminTodo,
   Addon,
   AddonPrice,
   sequelize
@@ -137,6 +139,8 @@ Message.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });
 
 Customer.hasMany(Conversation, { foreignKey: 'customerId' });
 Contact.hasMany(Conversation, { foreignKey: 'contactId' });
+
+Admin.hasMany(AdminTodo, { foreignKey: 'adminId' });
 
 async function ensureSystemStatuses() {
   await Status.findOrCreate({ where: { id: 1 }, defaults: { name: 'Activo' } });

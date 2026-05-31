@@ -1,6 +1,7 @@
 import bcrypt from 'bcrypt';
 import {
   Admin,
+  AdminTodo,
   Addon,
   AddonPrice,
   BillingCycle,
@@ -28,6 +29,19 @@ function serializeAdmin(admin) {
     role: admin.role,
     statusId: admin.statusId,
     createdAt: admin.createdAt,
+  };
+}
+
+function normalizeTodoPayload(body) {
+  const priority = ['low', 'medium', 'high'].includes(body.priority) ? body.priority : 'medium';
+  const status = ['pending', 'done'].includes(body.status) ? body.status : 'pending';
+
+  return {
+    title: body.title ? String(body.title).trim() : '',
+    notes: body.notes !== undefined ? String(body.notes || '').trim() : '',
+    priority,
+    status,
+    dueDate: body.dueDate || null,
   };
 }
 
@@ -535,6 +549,73 @@ class AdminController {
       });
 
       return res.status(201).json(result);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async todos(req, res) {
+    try {
+      const todos = await AdminTodo.findAndCountAll({
+        include: [{ model: Admin, attributes: ['id', 'firstname', 'lastname', 'email'], required: false }],
+        order: [
+          ['status', 'ASC'],
+          ['createdAt', 'DESC'],
+        ],
+      });
+
+      return res.json(todos);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async createTodo(req, res) {
+    try {
+      const payload = normalizeTodoPayload(req.body);
+      if (!payload.title) return res.status(400).json({ error: 'title es requerido' });
+
+      const todo = await AdminTodo.create({
+        ...payload,
+        adminId: req.admin.id,
+      });
+
+      const result = await AdminTodo.findByPk(todo.id, {
+        include: [{ model: Admin, attributes: ['id', 'firstname', 'lastname', 'email'], required: false }],
+      });
+      return res.status(201).json(result);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async updateTodo(req, res) {
+    try {
+      const { id } = req.params;
+      const todo = await AdminTodo.findByPk(id);
+      if (!todo) return res.status(404).json({ error: 'TODO no encontrado' });
+
+      const payload = normalizeTodoPayload({ ...todo.toJSON(), ...req.body });
+      if (!payload.title) return res.status(400).json({ error: 'title es requerido' });
+
+      await todo.update(payload);
+      const result = await AdminTodo.findByPk(todo.id, {
+        include: [{ model: Admin, attributes: ['id', 'firstname', 'lastname', 'email'], required: false }],
+      });
+      return res.json(result);
+    } catch (err) {
+      return res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async deleteTodo(req, res) {
+    try {
+      const { id } = req.params;
+      const todo = await AdminTodo.findByPk(id);
+      if (!todo) return res.status(404).json({ error: 'TODO no encontrado' });
+
+      await todo.destroy();
+      return res.json({ ok: true, id: Number(id) });
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
