@@ -42,9 +42,19 @@ process.on('warning', () => {});
 
 
 const app = express();
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map((origin) => origin.trim()).filter(Boolean)
-  : [];
+const defaultCorsOrigins = [
+  'https://admin-comiio.vercel.app',
+  'http://localhost:3101',
+];
+const configuredCorsOrigins = [
+  process.env.CORS_ORIGINS,
+  process.env.CORS_ORIGIN,
+]
+  .filter(Boolean)
+  .flatMap((value) => value.split(','))
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+const allowedOrigins = [...new Set([...defaultCorsOrigins, ...configuredCorsOrigins])];
 const allowAllOrigins = allowedOrigins.includes('*');
 
 const corsOptions = {
