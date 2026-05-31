@@ -13,6 +13,7 @@ async function generateToken(user) {
         storeId: user.storeId,
         roleId: user.roleId,
         username: user.username,
+        sessionVersion: user.sessionVersion,
     };
     const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
     return token;

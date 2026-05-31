@@ -18,6 +18,7 @@ const PROVIDER = 'whatsapp_web';
 function normalizePhone(value) {
   if (!value) return null;
   const raw = String(value).replace('@c.us', '').replace('@s.whatsapp.net', '');
+  if (raw.toLowerCase().includes('@g.us') || raw.toLowerCase().includes('@lid')) return null;
   const digits = raw.replace(/\D/g, '');
   return digits || null;
 }
@@ -39,8 +40,12 @@ function isWhatsappLid(value) {
   return String(value || '').toLowerCase().includes('@lid');
 }
 
+function isWhatsappGroup(value) {
+  return String(value || '').toLowerCase().includes('@g.us');
+}
+
 function lidToExternalChatId(value) {
-  if (!isWhatsappLid(value)) return null;
+  if (!isWhatsappLid(value) || isWhatsappGroup(value)) return null;
   const userPart = String(value || '').split('@')[0] || '';
   const digits = userPart.replace(/\D/g, '');
   return digits ? `${digits}@c.us` : null;
@@ -48,7 +53,7 @@ function lidToExternalChatId(value) {
 
 function externalChatIdToLid(value) {
   const chatId = normalizeExternalChatId(value);
-  if (!chatId || isWhatsappLid(chatId)) return null;
+  if (!chatId || isWhatsappLid(chatId) || isWhatsappGroup(chatId)) return null;
   const digits = normalizePhone(chatId);
   return digits ? `${digits}@lid` : null;
 }
@@ -73,7 +78,7 @@ function expandWhatsappAliases(values = []) {
 
 function isAccountAlias(account, alias) {
   const accountPhone = normalizePhone(account?.phone);
-  if (!accountPhone || isWhatsappLid(alias)) return false;
+  if (!accountPhone || isWhatsappLid(alias) || isWhatsappGroup(alias)) return false;
   return normalizePhone(alias) === accountPhone;
 }
 
@@ -417,7 +422,7 @@ async function resolveUniqueCustomerName({ storeId, baseName, phone, identifier 
   ].filter(Boolean);
 
   for (const candidate of candidates) {
-    const existing = await Customer.findOne({ where: { name: candidate } });
+    const existing = await Customer.findOne({ where: { storeId, name: candidate } });
     if (!existing) return candidate;
   }
 
@@ -570,52 +575,7 @@ async function findExistingConversationForAlias({ storeId, account, externalChat
     if (conversation) return { conversation, contact: existingContact };
   }
 
-  const normalizedName = String(name || '').trim();
-  if (!normalizedName && !profileImageUrl) return null;
-
-  const customerWhere = {};
-  if (normalizedName) {
-    customerWhere.name = { [Op.iLike]: normalizedName };
-  }
-  if (profileImageUrl) {
-    customerWhere[Op.or] = [
-      ...(customerWhere[Op.or] || []),
-      { metadata: { whatsappProfileImageUrl: profileImageUrl } },
-    ];
-  }
-
-  const possibleConversations = await Conversation.findAll({
-    where: {
-      storeId,
-      messagingAccountId: account.id,
-      status: 'open',
-    },
-    include: [
-      {
-        model: Customer,
-        attributes: ['id', 'name', 'phone', 'metadata'],
-        where: customerWhere,
-      },
-    ],
-    order: [['lastMessageAt', 'DESC'], ['updatedAt', 'DESC']],
-    limit: 2,
-  });
-
-  if (possibleConversations.length !== 1) return null;
-
-  const conversation = possibleConversations[0];
-  const contact = await ensureWhatsappContactAlias({
-    storeId,
-    account,
-    customerId: conversation.customerId,
-    identifier: aliases[0],
-  });
-
-  if (contact && conversation.contactId !== contact.id) {
-    await conversation.update({ contactId: contact.id });
-  }
-
-  return { conversation, contact };
+  return null;
 }
 
 async function getConversationRecipientIds(conversation, account) {
@@ -667,21 +627,43 @@ async function findOrCreateConversation({ storeId, account, phone, externalChatI
   if (!externalChatId) throw new Error('Identificador de conversación inválido');
 
   const normalizedPhone = normalizePhone(phone);
+  const trustedPhone = normalizedPhone || normalizePhone(externalChatId);
   const expandedAliasIds = expandWhatsappAliases([
     externalChatId,
-    normalizedPhone ? toExternalChatId(normalizedPhone) : null,
+    trustedPhone ? toExternalChatId(trustedPhone) : null,
     ...aliasIds,
   ]).filter((alias) => !isAccountAlias(account, alias));
-  const existingAlias = await findExistingConversationForAlias({
-    storeId,
-    account,
-    externalChatId,
-    aliasIds: expandedAliasIds,
-    name,
-    profileImageUrl,
+
+  const exactConversation = await Conversation.findOne({
+    where: {
+      storeId,
+      messagingAccountId: account.id,
+      externalChatId,
+    },
   });
 
+  if (exactConversation) {
+    if (exactConversation.status !== 'open') {
+      await exactConversation.update({ status: 'open' });
+    }
+    return exactConversation;
+  }
+
+  const existingAlias = trustedPhone
+    ? await findExistingConversationForAlias({
+      storeId,
+      account,
+      externalChatId,
+      aliasIds: expandedAliasIds,
+      name,
+      profileImageUrl,
+    })
+    : null;
+
   if (existingAlias?.conversation) {
+    if (existingAlias.conversation.status !== 'open') {
+      await existingAlias.conversation.update({ status: 'open' });
+    }
     if (normalizedPhone && existingAlias.conversation.customerId) {
       const existingCustomer = await Customer.findOne({
         where: { id: existingAlias.conversation.customerId, storeId },
@@ -722,6 +704,8 @@ async function findOrCreateConversation({ storeId, account, phone, externalChatI
       channel: 'whatsapp',
       externalChatId,
       status: 'open',
+      lastMessageAt: new Date(),
+      lastMessagePreview: 'Sin mensajes',
       unreadCount: 0,
     },
   });
@@ -785,6 +769,7 @@ async function refreshMissingProfilePictures(conversations) {
 
 async function updateConversationAfterMessage(conversation, message, incrementUnread = false) {
   await conversation.update({
+    status: 'open',
     lastMessageAt: message.createdAt,
     lastMessagePreview: messagePreview(message),
     unreadCount: incrementUnread ? conversation.unreadCount + 1 : conversation.unreadCount,

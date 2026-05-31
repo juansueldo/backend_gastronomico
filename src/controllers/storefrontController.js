@@ -36,6 +36,11 @@ function toPositiveInteger(value) {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+function getDeliveryFeeFromZone(zone) {
+  const deliveryFee = Number(zone?.deliveryFee ?? zone?.delivery_fee ?? 0);
+  return Number.isFinite(deliveryFee) && deliveryFee >= 0 ? deliveryFee : 0;
+}
+
 function normalizeHeadquarter(headquarter) {
   const closurePeriods = Array.isArray(headquarter.closure_periods) && headquarter.closure_periods.length > 0
     ? headquarter.closure_periods
@@ -608,6 +613,7 @@ class StorefrontController {
       let parsedDeliveryLatitude = null;
       let parsedDeliveryLongitude = null;
       let matchedDeliveryZone = null;
+      let deliveryFee = 0;
       if (type === 'delivery') {
         if (rawDeliveryLatitude === undefined || rawDeliveryLongitude === undefined) {
           return res.status(400).json({
@@ -636,6 +642,8 @@ class StorefrontController {
             details: { latitude: parsedDeliveryLatitude, longitude: parsedDeliveryLongitude },
           });
         }
+
+        deliveryFee = getDeliveryFeeFromZone(matchedDeliveryZone);
       }
 
       const normalizedDate = normalizeDateValue(requestedDateRaw);
@@ -792,7 +800,7 @@ class StorefrontController {
         });
       }
 
-      totalAmount = Number(totalAmount.toFixed(2));
+      totalAmount = Number((totalAmount + deliveryFee).toFixed(2));
       const orderNumber = `PUB-${Date.now()}-${store.id}`;
       const deliveryDateTime = type === 'delivery' && normalizedDate.value
         ? new Date(`${normalizedDate.value}T${normalizedTime.value || '00:00:00'}`)
@@ -809,6 +817,7 @@ class StorefrontController {
           delivery_date: deliveryDateTime,
           delivery_latitude: type === 'delivery' ? parsedDeliveryLatitude : null,
           delivery_longitude: type === 'delivery' ? parsedDeliveryLongitude : null,
+          delivery_fee: deliveryFee,
           deliveryZoneId: matchedDeliveryZone?.id ?? null,
           scheduled_date: normalizedDate.value,
           scheduled_time: normalizedTime.value,

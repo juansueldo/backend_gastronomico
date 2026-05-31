@@ -143,6 +143,10 @@ router.patch('/profile-image', authRequired, async (req, res) => {
   await UserController.updateProfileImage(req, res);
 });
 
+router.patch('/me/presence', authRequired, async (req, res) => {
+  await UserController.updatePresenceStatus(req, res);
+});
+
 router.get('/:id', authRequired, async (req, res) => {
   await UserController.getUserById(req, res);
 });

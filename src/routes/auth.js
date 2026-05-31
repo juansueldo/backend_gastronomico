@@ -1,6 +1,7 @@
 
 import express from 'express';
 import AuthController from '../controllers/authController.js';
+import { authRequired } from '../middleware/authMiddleware.js';
 const router = express.Router();
 
 /**
@@ -159,6 +160,10 @@ router.post('/register', async (req, res) => {
  */
 router.post('/login', async (req, res) => {
   await AuthController.login(req, res);
+});
+
+router.post('/logout', authRequired, async (req, res) => {
+  await AuthController.logout(req, res);
 });
 
 export default router;

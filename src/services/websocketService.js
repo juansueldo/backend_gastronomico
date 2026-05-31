@@ -55,6 +55,7 @@ class WebSocketService {
       }
       this.userConnections.get(storeId).push(socket.id);
       this.socketToStore.set(socket.id, storeId);
+      socket.join(`${storeId}`);
 
       // Emitir que el usuario se conectó
       socket.emit('connected', {

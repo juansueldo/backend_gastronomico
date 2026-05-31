@@ -34,6 +34,7 @@ import storefrontRoutes from './src/routes/storefront.js';
 import notificationRoutes from './src/routes/notification.js';
 import messagingRoutes from './src/routes/messaging.js';
 import adminRoutes from './src/routes/admin.js';
+import deliveryLogisticsRoutes from './src/routes/deliveryLogistics.js';
 
 const version = process.env.API_VERSION || 'v1';
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '80mb';
@@ -119,6 +120,7 @@ app.use(`/${version}/contact`, authOptional, contactRoutes);
 // Rutas protegidas (requieren autenticación válida)
 app.use(`/${version}/order`, authRequired, orderRoutes);
 app.use(`/${version}/delivery-zone`, authOptional, deliveryZoneRoutes);
+app.use(`/${version}/delivery-logistics`, authRequired, deliveryLogisticsRoutes);
 app.use(`/${version}/localities`, authRequired, localitiesRoutes);
 app.use(`/${version}/subscription`, authRequired, subscriptionRoutes);
 app.use(`/${version}/table`, authRequired, tableRoutes);

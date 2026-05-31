@@ -17,6 +17,7 @@ const Order = sequelize.define('Order', {
     delivery_address: { type: DataTypes.STRING, allowNull: true },
     delivery_latitude: { type: DataTypes.FLOAT, allowNull: true },
     delivery_longitude: { type: DataTypes.FLOAT, allowNull: true },
+    delivery_fee: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
     delivery_date: { type: DataTypes.DATE, allowNull: true },
     scheduled_date: { type: DataTypes.DATEONLY, allowNull: true },
     scheduled_time: { type: DataTypes.TIME, allowNull: true },

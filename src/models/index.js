@@ -26,6 +26,9 @@ import RecipeItem from './recipeItem.js';
 import ProductIngredientOption from './productIngredientOption.js';
 import OrderItemModifier from './orderItemModifier.js';
 import DeliveryZone from './deliveryZone.js';
+import DeliveryDriver from './deliveryDriver.js';
+import DeliveryRoute from './deliveryRoute.js';
+import DeliveryRouteOrder from './deliveryRouteOrder.js';
 import StockMovement from './stockMovement.js';
 import Table from './table.js';
 import Waiter from './waiter.js';
@@ -64,6 +67,9 @@ export {
   ProductIngredientOption,
   OrderItemModifier,
   DeliveryZone,
+  DeliveryDriver,
+  DeliveryRoute,
+  DeliveryRouteOrder,
   StockMovement,
   Table,
   Waiter,
@@ -127,6 +133,13 @@ OrderItem.hasMany(OrderItemModifier, { foreignKey: 'orderItemId' });
 OrderItemModifier.belongsTo(OrderItem, { foreignKey: 'orderItemId' });
 OrderItemModifier.belongsTo(InventoryItem, { foreignKey: 'inventoryItemId' });
 OrderItemModifier.belongsTo(ProductIngredientOption, { foreignKey: 'productIngredientOptionId' });
+
+DeliveryDriver.hasMany(DeliveryRoute, { foreignKey: 'driverId' });
+DeliveryRoute.belongsTo(DeliveryDriver, { foreignKey: 'driverId' });
+DeliveryRoute.hasMany(DeliveryRouteOrder, { foreignKey: 'routeId' });
+DeliveryRouteOrder.belongsTo(DeliveryRoute, { foreignKey: 'routeId' });
+Order.hasOne(DeliveryRouteOrder, { foreignKey: 'orderId' });
+DeliveryRouteOrder.belongsTo(Order, { foreignKey: 'orderId' });
 
 MessagingAccount.hasMany(Conversation, { foreignKey: 'messagingAccountId' });
 Conversation.belongsTo(MessagingAccount, { foreignKey: 'messagingAccountId' });

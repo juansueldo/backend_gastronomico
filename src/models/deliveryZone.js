@@ -10,6 +10,7 @@ const DeliveryZone = sequelize.define('DeliveryZone', {
   polygon: { type: DataTypes.JSON, allowNull: false }, // GeoJSON format
   metadata: { type: DataTypes.JSON, allowNull: true },
   zoneid: { type: DataTypes.STRING, allowNull: true },
+  deliveryFee: { type: DataTypes.FLOAT, allowNull: false, defaultValue: 0 },
 });
 
 DeliveryZone.belongsTo(Store, { foreignKey: 'storeId' });

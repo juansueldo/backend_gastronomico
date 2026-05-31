@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 
 import { Store, User, Role, Headquarter, Subscription, Plan, Status, sequelize } from '../models/index.js';
 import { generateToken } from '../middleware/token.js';
+import NotificationService from '../services/notificationService.js';
 
 class AuthController {
   
@@ -155,6 +156,13 @@ class AuthController {
         if (!user) return res.status(404).json({ error: 'User not found' });
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) return res.status(401).json({ error: 'Invalid credentials' });
+        const previousStatus = user.presenceStatus ?? 'offline';
+        const nextSessionVersion = Number(user.sessionVersion ?? 0) + 1;
+        await user.update({
+          presenceStatus: 'active',
+          lastPresenceAt: new Date(),
+          sessionVersion: nextSessionVersion,
+        });
         const token = await generateToken(user);
         const role = await Role.findOne({ where: { id: user.roleId } });
         const store = user.storeId ? await Store.findOne({ where: { id: user.storeId } }) : null;
@@ -180,6 +188,10 @@ class AuthController {
             headquarterId: user.headquarterId,
             roleId: user.roleId,
             role: role?.name,
+            presenceStatus: user.presenceStatus,
+            status: user.presenceStatus,
+            lastPresenceAt: user.lastPresenceAt,
+            sessionVersion: user.sessionVersion,
             store: store ? {
               id: store.id,
               name: store.name,
@@ -195,8 +207,43 @@ class AuthController {
             hasSubscription: Boolean(subscription),
             token: token
         };
+        NotificationService.notifyUserPresence(user.storeId, user, 'user_login', previousStatus);
         res.json({ message: 'Login successful', user: userData });
     }catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async logout(req, res) {
+    try {
+      const userId = req.user?.id;
+      const storeId = req.user?.storeId;
+
+      if (!userId || !storeId) {
+        return res.status(401).json({ error: 'Usuario no autenticado' });
+      }
+
+      const user = await User.findOne({ where: { id: userId, storeId } });
+      if (!user) return res.status(404).json({ error: 'User not found' });
+
+      const previousStatus = user.presenceStatus ?? 'offline';
+      await user.update({
+        presenceStatus: 'offline',
+        lastPresenceAt: new Date(),
+        sessionVersion: Number(user.sessionVersion ?? 0) + 1,
+      });
+      NotificationService.notifyUserPresence(storeId, user, 'user_logout', previousStatus);
+
+      res.json({
+        message: 'Logout successful',
+        user: {
+          id: user.id,
+          presenceStatus: user.presenceStatus,
+          status: user.presenceStatus,
+          lastPresenceAt: user.lastPresenceAt,
+        },
+      });
+    } catch (err) {
       res.status(400).json({ error: err.message });
     }
   }

@@ -88,6 +88,11 @@ function isPointInPolygon(lat, lon, polygon) {
   return inside;
 }
 
+function getDeliveryFeeFromZone(zone) {
+  const deliveryFee = Number(zone?.deliveryFee ?? zone?.delivery_fee ?? 0);
+  return Number.isFinite(deliveryFee) && deliveryFee >= 0 ? deliveryFee : 0;
+}
+
 async function getOrderForStore(orderId, storeId) {
   return Order.findOne({
     where: { id: orderId, storeId },
@@ -102,7 +107,7 @@ async function getOrderWithRelations(orderId, storeId) {
       { model: Customer, attributes: ['id', 'name', 'phone', 'email'] },
       { model: Store, attributes: ['id', 'name'] },
       { model: Status, attributes: ['id', 'name'] },
-      { model: DeliveryZone, attributes: ['id', 'name', 'zoneid'] },
+      { model: DeliveryZone, attributes: ['id', 'name', 'zoneid', 'deliveryFee'] },
       { model: Headquarter, attributes: ['id', 'name', 'location'] },
       { model: Table, attributes: ['id', 'name', 'table_number'] },
       { model: Waiter, attributes: ['id', 'firstname', 'lastname'] },
@@ -254,6 +259,7 @@ class OrderController {
     let resolvedHeadquarterId = requestedHeadquarterId;
     let parsedDeliveryLatitude = null;
     let parsedDeliveryLongitude = null;
+    let deliveryFee = 0;
     if (type === 'delivery') {
       if (!delivery_address) return res.status(400).json({ error: 'delivery_address es requerido para órdenes de delivery' });
       if (delivery_latitude === undefined || delivery_longitude === undefined) {
@@ -288,6 +294,7 @@ class OrderController {
       }
 
       resolvedHeadquarterId = matchedDeliveryZone.headquarterId;
+      deliveryFee = getDeliveryFeeFromZone(matchedDeliveryZone);
     } else {
       if (requestedHeadquarterId === null) {
         return res.status(400).json({ error: 'headquarterId es requerido' });
@@ -369,6 +376,8 @@ class OrderController {
       });
     }
 
+    totalAmount += deliveryFee;
+
     const order_number = `ORD-${Date.now()}-${storeId}`;
 
     const createdOrder = await sequelize.transaction(async (transaction) => {
@@ -379,6 +388,7 @@ class OrderController {
         delivery_date: type === 'delivery' ? delivery_date : null,
         delivery_latitude: type === 'delivery' ? parsedDeliveryLatitude : null,
         delivery_longitude: type === 'delivery' ? parsedDeliveryLongitude : null,
+        delivery_fee: deliveryFee,
         scheduled_date: normalizedScheduledDate.value,
         scheduled_time: normalizedScheduledTime.value,
         headquarterId: resolvedHeadquarterId,

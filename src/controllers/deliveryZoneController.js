@@ -66,6 +66,19 @@ function isPointInPolygon(lat, lon, polygon) {
   return inside;
 }
 
+function normalizeDeliveryFee(rawValue, defaultValue = 0) {
+  if (rawValue === undefined || rawValue === null || rawValue === '') {
+    return { value: defaultValue };
+  }
+
+  const normalizedValue = Number(rawValue);
+  if (!Number.isFinite(normalizedValue) || normalizedValue < 0) {
+    return { error: 'deliveryFee debe ser un número válido mayor o igual a 0' };
+  }
+
+  return { value: normalizedValue };
+}
+
 class DeliveryZoneController {
   /**
    * Crear una nueva zona de entrega
@@ -73,6 +86,7 @@ class DeliveryZoneController {
   static async create(req, res) {
     try {
       const { headquarterId, name, polygon, metadata, zoneid } = req.body;
+      const deliveryFeePayload = req.body.deliveryFee ?? req.body.delivery_fee;
 
       const storeId = req.user?.storeId;
       if (!storeId) {
@@ -98,6 +112,11 @@ class DeliveryZoneController {
         return res.status(400).json({ error: 'El polígono no tiene un formato válido o tiene menos de 3 puntos' });
       }
 
+      const normalizedDeliveryFee = normalizeDeliveryFee(deliveryFeePayload, 0);
+      if (normalizedDeliveryFee.error) {
+        return res.status(400).json({ error: normalizedDeliveryFee.error });
+      }
+
       const deliveryZone = await DeliveryZone.create({
         headquarterId,
         storeId,
@@ -105,6 +124,7 @@ class DeliveryZoneController {
         polygon,
         metadata: metadata || {},
         zoneid: zoneid || `ZONE_${Date.now()}`,
+        deliveryFee: normalizedDeliveryFee.value,
         statusId: 1,
       });
 
@@ -147,7 +167,7 @@ class DeliveryZoneController {
    */
   static async checkAddress(req, res) {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = req.user?.storeId || req.body.storeId || req.body.store_id || req.query.storeId || req.query.store_id;
       const { headquarterId, latitude, longitude } = req.body;
 
       if (!storeId) {
@@ -252,6 +272,7 @@ class DeliveryZoneController {
     try {
       const { id } = req.params;
       const { headquarterId, name, polygon, metadata, zoneid } = req.body;
+      const deliveryFeePayload = req.body.deliveryFee ?? req.body.delivery_fee;
       const storeId = req.user?.storeId;
 
       if (!storeId) {
@@ -276,12 +297,18 @@ class DeliveryZoneController {
         }
       }
 
+      const normalizedDeliveryFee = normalizeDeliveryFee(deliveryFeePayload, zone.deliveryFee ?? 0);
+      if (normalizedDeliveryFee.error) {
+        return res.status(400).json({ error: normalizedDeliveryFee.error });
+      }
+
       await zone.update({
         ...(headquarterId && { headquarterId }),
         ...(name && { name }),
         ...(polygon && { polygon }),
         ...(metadata && { metadata }),
         ...(zoneid && { zoneid }),
+        deliveryFee: normalizedDeliveryFee.value,
       });
 
       const updatedZone = await DeliveryZone.findOne({

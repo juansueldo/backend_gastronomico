@@ -14,6 +14,13 @@ const User = sequelize.define('User', {
   username: { type: DataTypes.STRING, allowNull: false, unique: true },
   password: { type: DataTypes.STRING, allowNull: false },
   profile_image_url: { type: DataTypes.STRING, allowNull: true },
+  presenceStatus: {
+    type: DataTypes.ENUM('active', 'away', 'busy', 'offline'),
+    allowNull: false,
+    defaultValue: 'offline',
+  },
+  lastPresenceAt: { type: DataTypes.DATE, allowNull: true },
+  sessionVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
 
 });
 

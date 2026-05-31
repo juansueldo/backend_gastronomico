@@ -18,6 +18,26 @@ function formatCustomer(customer) {
   };
 }
 
+function formatPresenceUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    firstname: user.firstname,
+    lastname: user.lastname,
+    username: user.username,
+    email: user.email,
+    storeId: user.storeId,
+    headquarterId: user.headquarterId,
+    roleId: user.roleId,
+    profile_image_url: user.profile_image_url,
+    profileImageUrl: user.profile_image_url,
+    presenceStatus: user.presenceStatus ?? 'offline',
+    status: user.presenceStatus ?? 'offline',
+    lastPresenceAt: user.lastPresenceAt ?? null,
+  };
+}
+
 class NotificationService {
   /**
    * Inicializar el servicio con la instancia de Socket.io
@@ -215,6 +235,20 @@ class NotificationService {
       ...data,
       timestamp: new Date()
     });
+  }
+
+  static notifyUserPresence(storeId, user, eventName = 'user_presence_changed', previousStatus = null) {
+    if (!ioInstance || !storeId || !user) return;
+
+    const payload = {
+      type: eventName,
+      user: formatPresenceUser(user),
+      userId: user.id,
+      previousStatus,
+      newStatus: user.presenceStatus ?? 'offline',
+    };
+
+    ioInstance.notifyChannel(storeId, 'presence', eventName, payload);
   }
 
   /**

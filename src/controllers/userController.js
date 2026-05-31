@@ -2,6 +2,14 @@ import bcrypt from 'bcrypt';
 import { Op } from 'sequelize'
 import { Store, User, Role } from '../models/index.js';
 import ImageService from '../services/imageService.js';
+import NotificationService from '../services/notificationService.js';
+
+const USER_PRESENCE_STATUSES = ['active', 'away', 'busy', 'offline'];
+
+function normalizePresenceStatus(value) {
+    const normalized = String(value ?? '').trim().toLowerCase();
+    return USER_PRESENCE_STATUSES.includes(normalized) ? normalized : null;
+}
 
 class UserController {
     static async createUser(req, res) {
@@ -10,7 +18,7 @@ class UserController {
             const storeId = req.user?.storeId;
             if(await User.findOne({ where: { username } })) throw new Error('Username already exists');
             const hashedPassword = await bcrypt.hash(password, 10);
-            const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId, statusId: 1, roleId, headquarterId });
+            const user = await User.create({ firstname, username, lastname, email, password: hashedPassword, storeId, statusId: 1, roleId, headquarterId, presenceStatus: 'offline' });
             if (!user) throw new Error('Error creating user');
             res.status(201).json({ user });
         }catch (err) {
@@ -94,6 +102,37 @@ class UserController {
         } catch (err) {
             console.error('Update user error:', err); // 👈 log útil en producción
             res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+
+    static async updatePresenceStatus(req, res) {
+        try {
+            const userId = req.user?.id;
+            const storeId = req.user?.storeId;
+            const nextStatus = normalizePresenceStatus(req.body?.status ?? req.body?.presenceStatus ?? req.body?.presence_status);
+
+            if (!userId || !storeId) {
+                return res.status(401).json({ error: 'Usuario no autenticado' });
+            }
+
+            if (!nextStatus) {
+                return res.status(400).json({ error: 'status debe ser: active, away, busy u offline' });
+            }
+
+            const user = await User.findOne({ where: { id: userId, storeId } });
+            if (!user) return res.status(404).json({ error: 'User not found' });
+
+            const previousStatus = user.presenceStatus ?? 'offline';
+            await user.update({ presenceStatus: nextStatus, lastPresenceAt: new Date() });
+            NotificationService.notifyUserPresence(storeId, user, 'user_presence_changed', previousStatus);
+
+            const safeUser = user.toJSON();
+            delete safeUser.password;
+            safeUser.status = safeUser.presenceStatus;
+
+            res.json({ user: safeUser });
+        } catch (err) {
+            res.status(400).json({ error: err.message });
         }
     }
 
