@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import OrderTrackingService from './orderTrackingService.js';
 
 class WebSocketService {
   constructor(httpServer) {
@@ -17,6 +18,7 @@ class WebSocketService {
     this.socketToStore = new Map(); // { socketId: storeId }
 
     this.setupMiddleware();
+    this.setupTrackingNamespace();
     this.setupEventHandlers();
   }
 
@@ -37,6 +39,31 @@ class WebSocketService {
       socket.storeId = parseInt(storeId);
       socket.token = token;
       next();
+    });
+  }
+
+  setupTrackingNamespace() {
+    const trackingNamespace = this.io.of('/tracking');
+
+    trackingNamespace.use(async (socket, next) => {
+      try {
+        const token = socket.handshake.auth?.token || socket.handshake.query?.token;
+        const result = await OrderTrackingService.getPublicTrackingByToken(token);
+        if (result.status !== 200) {
+          return next(new Error(result.error || 'Tracking inválido'));
+        }
+        socket.trackingToken = String(token);
+        socket.trackingPayload = result.data;
+        return next();
+      } catch {
+        return next(new Error('Tracking inválido'));
+      }
+    });
+
+    trackingNamespace.on('connection', (socket) => {
+      const token = socket.trackingToken;
+      socket.join(`tracking:${token}`);
+      socket.emit('tracking_updated', socket.trackingPayload);
     });
   }
 
@@ -147,6 +174,15 @@ class WebSocketService {
       timestamp: new Date(),
       event,
       data
+    });
+  }
+
+  notifyTracking(token, event, data) {
+    if (!token) return;
+    this.io.of('/tracking').to(`tracking:${token}`).emit(event, {
+      timestamp: new Date(),
+      event,
+      data,
     });
   }
 

@@ -11,6 +11,7 @@ import {
     Table,
     Waiter,
 } from '../models/index.js';
+import CustomerService, { normalizeCustomerName } from '../services/customerService.js';
 
 const ACTIVE_STATUS_ID = 1;
 const INACTIVE_STATUS_ID = 2;
@@ -58,25 +59,24 @@ function getCustomerOrder(query) {
 class CustomerController {
     static async create(req, res) {
         try {
-            const { firstname, lastname, phone, email, metadata } = req.body;
+            const { firstname, lastname, name, phone, email, metadata } = req.body;
             const storeId = req.user?.storeId;
+            const customerName = normalizeCustomerName(name) ?? normalizeCustomerName(`${firstname ?? ''} ${lastname ?? ''}`);
             
             if (!storeId) return res.status(401).json({ error: 'Store ID requerido en token' });
-            if (!firstname) return res.status(400).json({ error: 'firstname es requerido' });
-            if (!lastname) return res.status(400).json({ error: 'lastname es requerido' });
+            if (!customerName) return res.status(400).json({ error: 'name es requerido' });
             if (!phone) return res.status(400).json({ error: 'phone es requerido' });
             
             const store = await Store.findByPk(storeId);
             if (!store) return res.status(404).json({ error: 'Tienda no encontrada' });
             
-            const customer = await Customer.create({ 
-                firstname,
-                lastname,
-                phone, 
+            const customer = await CustomerService.findOrCreateByPhone({
+                storeId,
+                name: customerName,
+                phone,
                 email,
                 metadata,
-                storeId,
-                statusId: 1 
+                statusId: 1,
             });
             
             const result = await Customer.findByPk(customer.id, {

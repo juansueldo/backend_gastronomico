@@ -10,6 +10,7 @@ import {
   OrderItem,
   Product,
 } from '../models/index.js';
+import OrderTrackingService from '../services/orderTrackingService.js';
 
 const ACTIVE_ORDER_STATUSES = ['pending', 'processing', 'ready'];
 const ACTIVE_ROUTE_STATUSES = ['planning', 'assigned', 'in_transit'];
@@ -223,6 +224,8 @@ class DeliveryLogisticsController {
           transaction,
         });
 
+        await OrderTrackingService.ensureTrackingForOrders(orders, { transaction });
+
         await DeliveryRouteOrder.bulkCreate(orderIds.map((orderId, index) => ({
           storeId,
           routeId: createdRoute.id,
@@ -236,6 +239,7 @@ class DeliveryLogisticsController {
       });
 
       const loadedRoute = await loadRoute(route.id, storeId);
+      await OrderTrackingService.notifyRoute(route.id, storeId);
       res.status(201).json(loadedRoute);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -266,6 +270,7 @@ class DeliveryLogisticsController {
       }
 
       const loadedRoute = await loadRoute(route.id, storeId);
+      await OrderTrackingService.notifyRoute(route.id, storeId);
       res.status(200).json(loadedRoute);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -286,6 +291,48 @@ class DeliveryLogisticsController {
       );
 
       const loadedRoute = await loadRoute(route.id, storeId);
+      res.status(200).json(loadedRoute);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async updateRouteLocation(req, res) {
+    try {
+      const storeId = requireStoreId(req, res);
+      if (!storeId) return;
+
+      const latitude = Number(req.body.latitude);
+      const longitude = Number(req.body.longitude);
+      const accuracy = req.body.accuracy !== undefined && req.body.accuracy !== null
+        ? Number(req.body.accuracy)
+        : null;
+
+      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+        return res.status(400).json({ error: 'latitude inválida' });
+      }
+      if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        return res.status(400).json({ error: 'longitude inválida' });
+      }
+      if (accuracy !== null && (!Number.isFinite(accuracy) || accuracy < 0)) {
+        return res.status(400).json({ error: 'accuracy inválida' });
+      }
+
+      const route = await DeliveryRoute.findOne({ where: { id: req.params.id, storeId } });
+      if (!route) return res.status(404).json({ error: 'Recorrido no encontrado' });
+      if (!ACTIVE_ROUTE_STATUSES.includes(route.status)) {
+        return res.status(400).json({ error: 'El recorrido no está activo' });
+      }
+
+      await route.update({
+        lastLatitude: latitude,
+        lastLongitude: longitude,
+        lastLocationAccuracy: accuracy,
+        lastLocationAt: new Date(),
+      });
+
+      const loadedRoute = await loadRoute(route.id, storeId);
+      await OrderTrackingService.notifyRoute(route.id, storeId);
       res.status(200).json(loadedRoute);
     } catch (err) {
       res.status(400).json({ error: err.message });

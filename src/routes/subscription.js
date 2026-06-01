@@ -270,8 +270,16 @@ router.get('/:id', authRequired, async (req, res) => {
   await SubscriptionController.getById(req, res);
 });
 
+router.get('/:id/addons', authRequired, async (req, res) => {
+  await SubscriptionController.availableAddons(req, res);
+});
+
 router.patch('/:id', authRequired, async (req, res) => {
   await SubscriptionController.update(req, res);
+});
+
+router.patch('/:id/addons', authRequired, async (req, res) => {
+  await SubscriptionController.updateAddons(req, res);
 });
 
 router.patch('/:id/payment', authRequired, async (req, res) => {

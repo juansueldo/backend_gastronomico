@@ -1,4 +1,4 @@
-import { Subscription, Plan, PlanFeatures, PlanPrice, Store, Status, BillingCycle, User } from '../models/index.js';
+import { Subscription, Plan, PlanFeatures, PlanPrice, Store, Status, BillingCycle, User, Addon, AddonPrice } from '../models/index.js';
 import NotificationService from '../services/notificationService.js';
 import MercadoPagoSubscriptionService from '../services/mercadoPagoSubscriptionService.js';
 
@@ -7,6 +7,21 @@ const PAYMENT_PAID = 1;
 const PAYMENT_REJECTED = 2;
 const STATUS_ACTIVE = 1;
 const STATUS_INACTIVE = 2;
+
+const subscriptionInclude = [
+    { model: Store, attributes: ['id', 'name'] },
+    {
+        model: Plan,
+        attributes: ['id', 'name', 'description', 'isFree', 'billingCycleId'],
+        include: [
+            { model: PlanPrice, where: { statusId: STATUS_ACTIVE }, required: false },
+            { model: PlanFeatures, required: false },
+            { model: BillingCycle, required: false },
+        ],
+    },
+    { model: BillingCycle, attributes: ['id', 'name', 'durationInDays'], required: false },
+    { model: Status, attributes: ['id', 'name'] },
+];
 
 function addDays(date, days) {
     const nextDate = new Date(date);
@@ -71,6 +86,52 @@ class SubscriptionController {
             },
             order: [['createdAt', 'DESC']]
         });
+    }
+
+    static async getSubscriptionForStore(id, storeId) {
+        const subscription = await Subscription.findByPk(id, { include: subscriptionInclude });
+        if (!subscription) return null;
+        if (Number(subscription.storeId) !== Number(storeId)) {
+            const error = new Error('No tienes acceso a esta suscripción');
+            error.statusCode = 403;
+            throw error;
+        }
+        return subscription;
+    }
+
+    static getSelectedAddonIds(subscription) {
+        const addons = subscription?.metadata?.addons;
+        if (!Array.isArray(addons)) return [];
+        return addons
+            .map((addon) => Number(typeof addon === 'object' ? addon.id : addon))
+            .filter((id) => Number.isInteger(id) && id > 0);
+    }
+
+    static async listAvailableAddonsForSubscription(subscription) {
+        const planId = Number(subscription?.planId || 0);
+        const billingCycleId = Number(subscription?.billingCycleId || 0);
+        const selectedIds = new Set(this.getSelectedAddonIds(subscription));
+
+        const addons = await Addon.findAll({
+            where: { statusId: STATUS_ACTIVE },
+            include: [
+                { model: Plan, attributes: ['id', 'name'], required: false },
+                { model: BillingCycle, attributes: ['id', 'name', 'durationInDays'], required: false },
+                { model: AddonPrice, where: { statusId: STATUS_ACTIVE }, required: false },
+            ],
+            order: [['feature', 'ASC']],
+        });
+
+        return addons
+            .filter((addon) => {
+                const addonPlanId = Number(addon.planId || 0);
+                const addonCycleId = Number(addon.billingCycleId || 0);
+                return (!addonPlanId || addonPlanId === planId) && (!addonCycleId || addonCycleId === billingCycleId);
+            })
+            .map((addon) => {
+                const json = addon.toJSON();
+                return { ...json, selected: selectedIds.has(Number(addon.id)) };
+            });
     }
 
     static async getStorePayerEmail(storeId, fallbackEmail = null) {
@@ -212,11 +273,7 @@ class SubscriptionController {
 
             const subscriptions = await Subscription.findAndCountAll({
                 where: { storeId },
-                include: [
-                    { model: Store, attributes: ['id', 'name'] },
-                    { model: Plan, attributes: ['id', 'name', 'description', 'isFree', 'billingCycleId'] },
-                    { model: Status, attributes: ['id', 'name'] }
-                ],
+                include: subscriptionInclude,
                 order: [['createdAt', 'DESC']]
             });
 
@@ -233,13 +290,7 @@ class SubscriptionController {
 
             if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
 
-            const subscription = await Subscription.findByPk(id, {
-                include: [
-                    { model: Store, attributes: ['id', 'name'] },
-                    { model: Plan, attributes: ['id', 'name', 'price'] },
-                    { model: Status, attributes: ['id', 'name'] }
-                ]
-            });
+            const subscription = await Subscription.findByPk(id, { include: subscriptionInclude });
 
             if (!subscription) return res.status(404).json({ error: 'Suscripción no encontrada' });
             if (subscription.storeId !== storeId) {
@@ -267,23 +318,31 @@ class SubscriptionController {
             }
 
             if (planId) {
-                const plan = await Plan.findByPk(planId);
+                const plan = await Plan.findByPk(planId, {
+                    include: [{ model: BillingCycle, required: false }],
+                });
                 if (!plan) return res.status(404).json({ error: 'Plan no encontrado' });
                 subscription.planId = planId;
+                subscription.billingCycleId = billingCycleId || plan.billingCycleId || subscription.billingCycleId;
             }
 
             if (billingCycleId) subscription.billingCycleId = billingCycleId;
             if (endDate) subscription.endDate = new Date(endDate);
+            if (planId || billingCycleId) {
+                const cycle = await BillingCycle.findByPk(subscription.billingCycleId);
+                if (cycle) {
+                    const startDate = new Date();
+                    subscription.startDate = startDate;
+                    subscription.endDate = addDays(startDate, cycle.durationInDays || 30);
+                }
+                subscription.payment = PAYMENT_PAID;
+                subscription.statusId = STATUS_ACTIVE;
+                subscription.providerStatus = 'active';
+            }
 
             await subscription.save();
 
-            const updated = await Subscription.findByPk(id, {
-                include: [
-                    { model: Store, attributes: ['id', 'name'] },
-                    { model: Plan, attributes: ['id', 'name', 'price'] },
-                    { model: Status, attributes: ['id', 'name'] }
-                ]
-            });
+            const updated = await Subscription.findByPk(id, { include: subscriptionInclude });
 
             res.status(200).json(updated);
         } catch (err) {
@@ -405,6 +464,71 @@ class SubscriptionController {
             res.status(200).json({ ok: true, subscription });
         } catch (err) {
             res.status(400).json({ error: err.message });
+        }
+    }
+
+    static async availableAddons(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            const { id } = req.params;
+
+            if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+
+            const subscription = await SubscriptionController.getSubscriptionForStore(id, storeId);
+            if (!subscription) return res.status(404).json({ error: 'Suscripción no encontrada' });
+
+            const addons = await SubscriptionController.listAvailableAddonsForSubscription(subscription);
+            res.status(200).json({ rows: addons });
+        } catch (err) {
+            res.status(err.statusCode || 400).json({ error: err.message });
+        }
+    }
+
+    static async updateAddons(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            const { id } = req.params;
+            const addonIds = Array.isArray(req.body?.addonIds) ? req.body.addonIds : [];
+
+            if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
+
+            const subscription = await SubscriptionController.getSubscriptionForStore(id, storeId);
+            if (!subscription) return res.status(404).json({ error: 'Suscripción no encontrada' });
+
+            const normalizedIds = [...new Set(addonIds.map(Number).filter((addonId) => Number.isInteger(addonId) && addonId > 0))];
+            const available = await SubscriptionController.listAvailableAddonsForSubscription(subscription);
+            const availableById = new Map(available.map((addon) => [Number(addon.id), addon]));
+            const invalidIds = normalizedIds.filter((addonId) => !availableById.has(addonId));
+
+            if (invalidIds.length) {
+                return res.status(400).json({ error: 'Hay complementos no disponibles para el plan actual', invalidIds });
+            }
+
+            const selectedAddons = normalizedIds.map((addonId) => {
+                const addon = availableById.get(addonId);
+                const price = addon.AddonPrices?.find((item) => String(item.currency || '').toUpperCase() === 'ARS') || addon.AddonPrices?.[0] || null;
+                return {
+                    id: addon.id,
+                    feature: addon.feature,
+                    key: addon.key,
+                    value: addon.value,
+                    price: price ? { amount: Number(price.price || 0), currency: price.currency || 'ARS' } : null,
+                };
+            });
+
+            await subscription.update({
+                metadata: {
+                    ...(subscription.metadata || {}),
+                    addons: selectedAddons,
+                    addonsUpdatedAt: new Date().toISOString(),
+                },
+            });
+
+            const updated = await Subscription.findByPk(id, { include: subscriptionInclude });
+            NotificationService.notifySubscriptionUpdated(storeId, updated);
+            res.status(200).json({ subscription: updated, addons: selectedAddons });
+        } catch (err) {
+            res.status(err.statusCode || 400).json({ error: err.message });
         }
     }
 

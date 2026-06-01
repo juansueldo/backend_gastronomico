@@ -15,6 +15,10 @@ const DeliveryRoute = sequelize.define('DeliveryRoute', {
   scheduledAt: { type: DataTypes.DATE, allowNull: true },
   startedAt: { type: DataTypes.DATE, allowNull: true },
   completedAt: { type: DataTypes.DATE, allowNull: true },
+  lastLatitude: { type: DataTypes.FLOAT, allowNull: true },
+  lastLongitude: { type: DataTypes.FLOAT, allowNull: true },
+  lastLocationAccuracy: { type: DataTypes.FLOAT, allowNull: true },
+  lastLocationAt: { type: DataTypes.DATE, allowNull: true },
   notes: { type: DataTypes.TEXT, allowNull: true },
 });
 

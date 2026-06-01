@@ -219,11 +219,56 @@ async function ensureStoreSalesChannelColumns() {
   }
 }
 
+async function ensureCustomerNameIsNotUnique() {
+  if (sequelize.getDialect() !== 'postgres') return;
+
+  await sequelize.query(`
+    DO $$
+    DECLARE constraint_record record;
+    BEGIN
+      FOR constraint_record IN
+        SELECT c.conname
+        FROM pg_constraint c
+        JOIN pg_class t ON c.conrelid = t.oid
+        JOIN pg_namespace n ON n.oid = t.relnamespace
+        WHERE n.nspname = 'public'
+          AND t.relname = 'Customers'
+          AND c.contype = 'u'
+          AND (
+            SELECT array_agg(a.attname ORDER BY a.attnum)
+            FROM unnest(c.conkey) AS keys(attnum)
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = keys.attnum
+          ) = ARRAY['name']::name[]
+      LOOP
+        EXECUTE format('ALTER TABLE %I.%I DROP CONSTRAINT %I', 'public', 'Customers', constraint_record.conname);
+      END LOOP;
+    END $$;
+  `);
+
+  await sequelize.query(`
+    DO $$
+    DECLARE index_record record;
+    BEGIN
+      FOR index_record IN
+        SELECT schemaname, indexname
+        FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename = 'Customers'
+          AND indexdef ILIKE 'CREATE UNIQUE INDEX%'
+          AND indexdef ~ '\\("name"\\)'
+      LOOP
+        EXECUTE format('DROP INDEX IF EXISTS %I.%I', index_record.schemaname, index_record.indexname);
+      END LOOP;
+    END $$;
+  `);
+}
+
 // Sincroniza todos los modelos
 export async function syncModels() {
   await ensureStoreSalesChannelColumns();
   await sequelize.sync({ alter: true });
   await ensureStoreSalesChannelColumns();
+  await ensureCustomerNameIsNotUnique();
   await ensureSystemStatuses();
   await ensureInitialAdmin();
 }

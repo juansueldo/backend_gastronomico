@@ -35,6 +35,8 @@ import notificationRoutes from './src/routes/notification.js';
 import messagingRoutes from './src/routes/messaging.js';
 import adminRoutes from './src/routes/admin.js';
 import deliveryLogisticsRoutes from './src/routes/deliveryLogistics.js';
+import landingRoutes from './src/routes/landing.js';
+import orderTrackingRoutes from './src/routes/orderTracking.js';
 
 const version = process.env.API_VERSION || 'v1';
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '80mb';
@@ -45,6 +47,8 @@ process.on('warning', () => {});
 const app = express();
 const defaultCorsOrigins = [
   'https://admin-comiio.vercel.app',
+  'https://landing-comiio.vercel.app',
+  'http://localhost:4321',
   'http://localhost:3101',
 ];
 const configuredCorsOrigins = [
@@ -102,6 +106,8 @@ app.use(express.static(path.join(process.cwd(), 'public')));
 app.use(`/${version}/auth`, authRoutes);
 app.use(`/${version}/admin`, adminRoutes);
 app.use(`/${version}/store`, storefrontRoutes);
+app.use(`/${version}/landing`, landingRoutes);
+app.use(`/${version}/order-tracking`, orderTrackingRoutes);
 
 // Rutas con autenticación opcional (GET públicas, CREATE protegidas en la ruta)
 app.use(`/${version}/status`, authOptional, statusRoutes);

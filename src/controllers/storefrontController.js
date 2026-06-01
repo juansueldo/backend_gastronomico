@@ -18,6 +18,7 @@ import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
 import ImageService from '../services/imageService.js';
 import OrderItemModifierService from '../services/orderItemModifierService.js';
+import CustomerService from '../services/customerService.js';
 
 const ACTIVE_STATUS_ID = 1;
 const MAX_STORE_IMAGE_BYTES = Number(process.env.STORE_IMAGE_MAX_BYTES) || 5 * 1024 * 1024;
@@ -763,18 +764,12 @@ class StorefrontController {
         }
       }
 
-      let customer = await Customer.findOne({
-        where: { storeId: store.id, phone: String(phone) },
+      const customer = await CustomerService.findOrCreateByPhone({
+        storeId: store.id,
+        name: customerName,
+        phone,
+        statusId: ACTIVE_STATUS_ID,
       });
-
-      if (!customer) {
-        customer = await Customer.create({
-          name: String(customerName).trim(),
-          phone: String(phone).trim(),
-          storeId: store.id,
-          statusId: ACTIVE_STATUS_ID,
-        });
-      }
 
       let totalAmount = 0;
       const orderItemsToCreate = [];

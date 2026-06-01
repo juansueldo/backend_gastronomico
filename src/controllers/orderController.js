@@ -2,6 +2,9 @@ import sequelize from '../models/db.js';
 import { Op } from 'sequelize';
 import {
   Customer,
+  DeliveryDriver,
+  DeliveryRoute,
+  DeliveryRouteOrder,
   DeliveryZone,
   Headquarter,
   Order,
@@ -18,6 +21,8 @@ import { parseLocaleNumber } from '../utils/numberParser.js';
 import NotificationService from '../services/notificationService.js';
 import InventoryConsumptionService from '../services/inventoryConsumptionService.js';
 import OrderItemModifierService from '../services/orderItemModifierService.js';
+import CustomerService from '../services/customerService.js';
+import OrderTrackingService from '../services/orderTrackingService.js';
 
 const ORDER_STATUSES = ['pending', 'processing', 'ready', 'completed', 'cancelled'];
 const ORDER_STATUS_TRANSITIONS = {
@@ -166,6 +171,51 @@ function normalizeScheduledTime(value) {
   return { value: `${hours}:${minutes}:${seconds}` };
 }
 
+async function closeDeliveryAssignmentForCompletedOrder(order, storeId, transaction) {
+  if (order.type !== 'delivery') return;
+
+  const routeOrder = await DeliveryRouteOrder.findOne({
+    where: {
+      storeId,
+      orderId: order.id,
+      status: { [Op.ne]: 'delivered' },
+    },
+    transaction,
+  });
+
+  if (!routeOrder) return;
+
+  await routeOrder.update({ status: 'delivered' }, { transaction });
+
+  const pendingRouteOrders = await DeliveryRouteOrder.count({
+    where: {
+      storeId,
+      routeId: routeOrder.routeId,
+      status: { [Op.notIn]: ['delivered', 'failed'] },
+    },
+    transaction,
+  });
+
+  if (pendingRouteOrders > 0) return;
+
+  const route = await DeliveryRoute.findOne({
+    where: { id: routeOrder.routeId, storeId },
+    transaction,
+  });
+
+  if (!route || route.status === 'completed') return;
+
+  await route.update({
+    status: 'completed',
+    completedAt: new Date(),
+  }, { transaction });
+
+  await DeliveryDriver.update(
+    { status: 'active' },
+    { where: { id: route.driverId, storeId }, transaction }
+  );
+}
+
 class OrderController {
   static async create(req, res) {
   try {
@@ -192,26 +242,22 @@ class OrderController {
       return res.status(401).json({ error: 'storeId no encontrado en el token' });
     }
 
-    // Resolver customerId (crear cliente si no existe)
+    // Resolver customerId por telefono: el nombre puede repetirse entre clientes.
     let resolvedCustomerId = customerId ?? null;
-    if (!customerId) {
-      if (!customerName) return res.status(400).json({ error: 'customerName es requerido si no se proporciona customerId' });
-      if (!customerPhone) return res.status(400).json({ error: 'customerPhone es requerido si no se proporciona customerId' });
+    if (!customerId && !customerPhone) {
+      return res.status(400).json({ error: 'customerPhone es requerido si no se proporciona customerId' });
+    }
 
-      const customerLookup = {
+    if (customerPhone) {
+      if (!customerName) return res.status(400).json({ error: 'customerName es requerido si se proporciona customerPhone' });
+
+      const customer = await CustomerService.findOrCreateByPhone({
         storeId,
-        [Op.or]: [
-          { phone: customerPhone },
-          { name: customerName },
-        ],
-      };
-      const existingCustomer = await Customer.findOne({ where: customerLookup });
-      if (existingCustomer) {
-        resolvedCustomerId = existingCustomer.id;
-      } else {
-        const newCustomer = await Customer.create({ name: customerName, phone: customerPhone, storeId, statusId: 1 });
-        resolvedCustomerId = newCustomer.id;
-      }
+        name: customerName,
+        phone: customerPhone,
+        statusId: 1,
+      });
+      resolvedCustomerId = customer.id;
     }
 
     if (!userId) return res.status(400).json({ error: 'userId es requerido' });
@@ -511,6 +557,7 @@ class OrderController {
 
     const order = await getOrderForStore(id, storeId);
     if (!order) return res.status(404).json({ error: 'Orden no encontrada' });
+    const oldStatus = order.status;
 
     const transitionError = validateTransition(order.status, status);
     const canFinalizeActiveOrder = req.allowDirectFinalize === true
@@ -538,9 +585,19 @@ class OrderController {
         status,
         statusId: STATUS_ID_MAP[status],
       }, { transaction });
+
+      if (status === 'completed') {
+        await closeDeliveryAssignmentForCompletedOrder(order, storeId, transaction);
+      }
     });
 
     const updatedOrder = await getOrderWithRelations(id, storeId);
+    try {
+      NotificationService.notifyOrderStatusChanged(storeId, updatedOrder, oldStatus);
+      await OrderTrackingService.notifyOrder(id, storeId);
+    } catch (notificationError) {
+      console.error('Error notificando cambio de estado de orden:', notificationError);
+    }
     res.status(200).json(updatedOrder);
   } catch (err) {
     res.status(400).json({ error: err.message });
