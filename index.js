@@ -37,6 +37,7 @@ import adminRoutes from './src/routes/admin.js';
 import deliveryLogisticsRoutes from './src/routes/deliveryLogistics.js';
 import landingRoutes from './src/routes/landing.js';
 import orderTrackingRoutes from './src/routes/orderTracking.js';
+import driverAppRoutes from './src/routes/driverApp.js';
 
 const version = process.env.API_VERSION || 'v1';
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '80mb';
@@ -108,6 +109,7 @@ app.use(`/${version}/admin`, adminRoutes);
 app.use(`/${version}/store`, storefrontRoutes);
 app.use(`/${version}/landing`, landingRoutes);
 app.use(`/${version}/order-tracking`, orderTrackingRoutes);
+app.use(`/${version}/driver-app`, driverAppRoutes);
 
 // Rutas con autenticación opcional (GET públicas, CREATE protegidas en la ruta)
 app.use(`/${version}/status`, authOptional, statusRoutes);

@@ -1,6 +1,8 @@
 
 import jwt from 'jsonwebtoken';
 
+const DRIVER_TOKEN_EXPIRES_IN = '30d';
+
 /**
  * Genera un JWT con datos del usuario
  * @param {Object} user - Usuario con id, email, storeId, roleId
@@ -30,6 +32,18 @@ async function generateAdminToken(admin) {
     return token;
 }
 
+async function generateDriverToken(driver) {
+    const payload = {
+        id: driver.id,
+        storeId: driver.storeId,
+        name: driver.name,
+        type: 'driver',
+        mobileSessionVersion: driver.mobileSessionVersion,
+    };
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: DRIVER_TOKEN_EXPIRES_IN });
+    return token;
+}
+
 /**
  * Valida el token JWT y extrae los datos
  * @param {String} token - Token JWT
@@ -56,4 +70,4 @@ function extractToken(authHeader) {
     return authHeader.split(' ')[1];
 }
 
-export { generateToken, generateAdminToken, verifyToken, extractToken };
+export { generateToken, generateAdminToken, generateDriverToken, verifyToken, extractToken };

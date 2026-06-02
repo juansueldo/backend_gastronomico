@@ -6,6 +6,7 @@ const router = express.Router();
 router.get('/drivers', DeliveryLogisticsController.listDrivers);
 router.post('/drivers', DeliveryLogisticsController.createDriver);
 router.patch('/drivers/:id', DeliveryLogisticsController.updateDriver);
+router.post('/drivers/:id/invite', DeliveryLogisticsController.regenerateDriverInvite);
 router.delete('/drivers/:id', DeliveryLogisticsController.deleteDriver);
 
 router.get('/board', DeliveryLogisticsController.board);

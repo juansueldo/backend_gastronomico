@@ -171,6 +171,24 @@ function normalizeScheduledTime(value) {
   return { value: `${hours}:${minutes}:${seconds}` };
 }
 
+function normalizeScheduledDateTime(value) {
+  if (!hasValue(value)) return { value: null };
+
+  const parsedDate = new Date(String(value).trim());
+  if (Number.isNaN(parsedDate.getTime())) {
+    return { error: 'scheduled_for debe ser una fecha y hora válida' };
+  }
+
+  return { value: parsedDate };
+}
+
+function buildScheduledDateTime(dateValue, timeValue) {
+  if (!dateValue) return null;
+
+  const parsedDate = new Date(`${dateValue}T${timeValue || '00:00:00'}`);
+  return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+}
+
 async function closeDeliveryAssignmentForCompletedOrder(order, storeId, transaction) {
   if (order.type !== 'delivery') return;
 
@@ -227,6 +245,7 @@ class OrderController {
       delivery_date,
       delivery_latitude,
       delivery_longitude,
+      scheduled_for,
       scheduled_date,
       scheduled_time,
       headquarterId,
@@ -278,8 +297,25 @@ class OrderController {
       return res.status(400).json({ error: normalizedScheduledTime.error });
     }
 
+    const normalizedScheduledFor = normalizeScheduledDateTime(scheduled_for);
+    if (normalizedScheduledFor.error) {
+      return res.status(400).json({ error: normalizedScheduledFor.error });
+    }
+
     if (!normalizedScheduledDate.value && normalizedScheduledTime.value) {
       return res.status(400).json({ error: 'Si envías scheduled_time también debes enviar scheduled_date' });
+    }
+
+    const resolvedDeliveryDate = type === 'delivery'
+      ? (
+          normalizedScheduledFor.value
+          ?? buildScheduledDateTime(normalizedScheduledDate.value, normalizedScheduledTime.value)
+          ?? (delivery_date ? new Date(delivery_date) : null)
+        )
+      : null;
+
+    if (resolvedDeliveryDate && Number.isNaN(resolvedDeliveryDate.getTime())) {
+      return res.status(400).json({ error: 'delivery_date debe ser una fecha válida' });
     }
 
     const store = await Store.findByPk(storeId);
@@ -431,7 +467,7 @@ class OrderController {
         customerId: resolvedCustomerId,          // ← corregido
         deliveryZoneId: matchedDeliveryZone?.id ?? null,
         delivery_address: type === 'delivery' ? delivery_address : null,
-        delivery_date: type === 'delivery' ? delivery_date : null,
+        delivery_date: resolvedDeliveryDate,
         delivery_latitude: type === 'delivery' ? parsedDeliveryLatitude : null,
         delivery_longitude: type === 'delivery' ? parsedDeliveryLongitude : null,
         delivery_fee: deliveryFee,

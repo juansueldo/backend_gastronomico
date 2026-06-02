@@ -11,9 +11,11 @@ import {
   Product,
 } from '../models/index.js';
 import OrderTrackingService from '../services/orderTrackingService.js';
+import DriverInviteService from '../services/driverInviteService.js';
 
 const ACTIVE_ORDER_STATUSES = ['pending', 'processing', 'ready'];
 const ACTIVE_ROUTE_STATUSES = ['planning', 'assigned', 'in_transit'];
+const SAFE_DRIVER_ATTRIBUTES = { exclude: ['inviteCodeHash'] };
 
 function requireStoreId(req, res) {
   const storeId = req.user?.storeId;
@@ -42,7 +44,7 @@ function orderIncludes() {
 
 function routeIncludes() {
   return [
-    { model: DeliveryDriver },
+    { model: DeliveryDriver, attributes: SAFE_DRIVER_ATTRIBUTES },
     {
       model: DeliveryRouteOrder,
       include: [{ model: Order, include: orderIncludes() }],
@@ -66,6 +68,7 @@ class DeliveryLogisticsController {
 
       const drivers = await DeliveryDriver.findAll({
         where: { storeId },
+        attributes: SAFE_DRIVER_ATTRIBUTES,
         order: [['status', 'ASC'], ['name', 'ASC']],
       });
       res.status(200).json({ rows: drivers, count: drivers.length });
@@ -120,6 +123,28 @@ class DeliveryLogisticsController {
 
       await driver.update(updates);
       res.status(200).json(driver);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async regenerateDriverInvite(req, res) {
+    try {
+      const storeId = requireStoreId(req, res);
+      if (!storeId) return;
+
+      const driver = await DeliveryDriver.findOne({ where: { id: req.params.id, storeId } });
+      if (!driver) return res.status(404).json({ error: 'Repartidor no encontrado' });
+      if (driver.status === 'inactive') return res.status(400).json({ error: 'El repartidor está inactivo' });
+
+      const invite = await DriverInviteService.regenerateInvite(driver);
+      const publicDriver = invite.driver.toJSON();
+      delete publicDriver.inviteCodeHash;
+      res.status(200).json({
+        driver: publicDriver,
+        inviteCode: invite.inviteCode,
+        inviteCodeExpiresAt: invite.inviteCodeExpiresAt,
+      });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

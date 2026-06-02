@@ -20,6 +20,10 @@ const DeliveryDriver = sequelize.define('DeliveryDriver', {
     defaultValue: 'active',
   },
   notes: { type: DataTypes.TEXT, allowNull: true },
+  inviteCodeHash: { type: DataTypes.STRING, allowNull: true },
+  inviteCodeExpiresAt: { type: DataTypes.DATE, allowNull: true },
+  mobileSessionVersion: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  lastLoginAt: { type: DataTypes.DATE, allowNull: true },
 });
 
 DeliveryDriver.belongsTo(Store, { foreignKey: 'storeId', allowNull: false });
