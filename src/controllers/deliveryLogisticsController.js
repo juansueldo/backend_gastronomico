@@ -12,6 +12,7 @@ import {
 } from '../models/index.js';
 import OrderTrackingService from '../services/orderTrackingService.js';
 import DriverInviteService from '../services/driverInviteService.js';
+import DriverPushNotificationService from '../services/driverPushNotificationService.js';
 
 const ACTIVE_ORDER_STATUSES = ['pending', 'processing', 'ready'];
 const ACTIVE_ROUTE_STATUSES = ['planning', 'assigned', 'in_transit'];
@@ -265,6 +266,11 @@ class DeliveryLogisticsController {
 
       const loadedRoute = await loadRoute(route.id, storeId);
       await OrderTrackingService.notifyRoute(route.id, storeId);
+      try {
+        await DriverPushNotificationService.notifyRouteAssigned(route);
+      } catch (notificationErr) {
+        console.error('Error enviando push de recorrido asignado:', notificationErr);
+      }
       res.status(201).json(loadedRoute);
     } catch (err) {
       res.status(400).json({ error: err.message });
@@ -296,6 +302,13 @@ class DeliveryLogisticsController {
 
       const loadedRoute = await loadRoute(route.id, storeId);
       await OrderTrackingService.notifyRoute(route.id, storeId);
+      if (['assigned', 'in_transit'].includes(status)) {
+        try {
+          await DriverPushNotificationService.notifyRouteUpdated(route);
+        } catch (notificationErr) {
+          console.error('Error enviando push de recorrido actualizado:', notificationErr);
+        }
+      }
       res.status(200).json(loadedRoute);
     } catch (err) {
       res.status(400).json({ error: err.message });

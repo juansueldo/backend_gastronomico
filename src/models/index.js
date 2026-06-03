@@ -27,6 +27,7 @@ import ProductIngredientOption from './productIngredientOption.js';
 import OrderItemModifier from './orderItemModifier.js';
 import DeliveryZone from './deliveryZone.js';
 import DeliveryDriver from './deliveryDriver.js';
+import DriverPushToken from './driverPushToken.js';
 import DeliveryRoute from './deliveryRoute.js';
 import DeliveryRouteOrder from './deliveryRouteOrder.js';
 import StockMovement from './stockMovement.js';
@@ -68,6 +69,7 @@ export {
   OrderItemModifier,
   DeliveryZone,
   DeliveryDriver,
+  DriverPushToken,
   DeliveryRoute,
   DeliveryRouteOrder,
   StockMovement,
@@ -136,6 +138,8 @@ OrderItemModifier.belongsTo(ProductIngredientOption, { foreignKey: 'productIngre
 
 DeliveryDriver.hasMany(DeliveryRoute, { foreignKey: 'driverId' });
 DeliveryRoute.belongsTo(DeliveryDriver, { foreignKey: 'driverId' });
+DeliveryDriver.hasMany(DriverPushToken, { foreignKey: 'driverId' });
+DriverPushToken.belongsTo(DeliveryDriver, { foreignKey: 'driverId' });
 DeliveryRoute.hasMany(DeliveryRouteOrder, { foreignKey: 'routeId' });
 DeliveryRouteOrder.belongsTo(DeliveryRoute, { foreignKey: 'routeId' });
 Order.hasOne(DeliveryRouteOrder, { foreignKey: 'orderId' });

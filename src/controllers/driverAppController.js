@@ -13,6 +13,7 @@ import {
 import { generateDriverToken } from '../middleware/token.js';
 import DriverInviteService from '../services/driverInviteService.js';
 import OrderTrackingService from '../services/orderTrackingService.js';
+import DriverPushNotificationService from '../services/driverPushNotificationService.js';
 
 const ACTIVE_ROUTE_STATUSES = ['assigned', 'in_transit'];
 const ROUTE_STATUSES = ['assigned', 'in_transit', 'completed'];
@@ -175,6 +176,45 @@ class DriverAppController {
       });
 
       res.status(200).json({ routes: routes.map(sortRouteOrders) });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async registerPushToken(req, res) {
+    try {
+      const driver = req.driver;
+      const token = String(req.body.token || '').trim();
+      if (!token) return res.status(400).json({ error: 'token es requerido' });
+
+      const row = await DriverPushNotificationService.registerToken(driver, {
+        token,
+        platform: req.body.platform,
+        deviceId: req.body.deviceId,
+      });
+
+      res.status(200).json({
+        ok: true,
+        pushToken: {
+          id: row.id,
+          platform: row.platform,
+          enabled: row.enabled,
+          lastRegisteredAt: row.lastRegisteredAt,
+        },
+      });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async unregisterPushToken(req, res) {
+    try {
+      const driver = req.driver;
+      const token = String(req.body.token || '').trim();
+      if (!token) return res.status(400).json({ error: 'token es requerido' });
+
+      const count = await DriverPushNotificationService.unregisterToken(driver, token);
+      res.status(200).json({ ok: true, disabled: count });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
