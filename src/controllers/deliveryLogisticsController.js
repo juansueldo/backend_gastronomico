@@ -18,6 +18,13 @@ const ACTIVE_ORDER_STATUSES = ['pending', 'processing', 'ready'];
 const ACTIVE_ROUTE_STATUSES = ['planning', 'assigned', 'in_transit'];
 const SAFE_DRIVER_ATTRIBUTES = { exclude: ['inviteCodeHash'] };
 
+function serializeDriver(driver) {
+  const json = typeof driver.toJSON === 'function' ? driver.toJSON() : { ...driver };
+  json.hasInviteCode = Boolean(driver.inviteCodeHash);
+  delete json.inviteCodeHash;
+  return json;
+}
+
 function requireStoreId(req, res) {
   const storeId = req.user?.storeId;
   if (!storeId) {
@@ -69,10 +76,10 @@ class DeliveryLogisticsController {
 
       const drivers = await DeliveryDriver.findAll({
         where: { storeId },
-        attributes: SAFE_DRIVER_ATTRIBUTES,
         order: [['status', 'ASC'], ['name', 'ASC']],
       });
-      res.status(200).json({ rows: drivers, count: drivers.length });
+      const rows = drivers.map(serializeDriver);
+      res.status(200).json({ rows, count: rows.length });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }
@@ -139,10 +146,8 @@ class DeliveryLogisticsController {
       if (driver.status === 'inactive') return res.status(400).json({ error: 'El repartidor está inactivo' });
 
       const invite = await DriverInviteService.regenerateInvite(driver);
-      const publicDriver = invite.driver.toJSON();
-      delete publicDriver.inviteCodeHash;
       res.status(200).json({
-        driver: publicDriver,
+        driver: serializeDriver(invite.driver),
         inviteCode: invite.inviteCode,
         inviteCodeExpiresAt: invite.inviteCodeExpiresAt,
       });

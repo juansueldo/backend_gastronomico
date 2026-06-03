@@ -2,13 +2,6 @@ import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 
 const PIN_LENGTH = 6;
-const INVITE_TTL_HOURS = 72;
-
-function addHours(date, hours) {
-  const next = new Date(date);
-  next.setHours(next.getHours() + hours);
-  return next;
-}
 
 function createPin() {
   const max = 10 ** PIN_LENGTH;
@@ -19,24 +12,22 @@ class DriverInviteService {
   static async regenerateInvite(driver) {
     const inviteCode = createPin();
     const inviteCodeHash = await bcrypt.hash(inviteCode, 10);
-    const inviteCodeExpiresAt = addHours(new Date(), INVITE_TTL_HOURS);
 
     await driver.update({
       inviteCodeHash,
-      inviteCodeExpiresAt,
+      inviteCodeExpiresAt: null,
       mobileSessionVersion: Number(driver.mobileSessionVersion ?? 0) + 1,
     });
 
     return {
       inviteCode,
-      inviteCodeExpiresAt,
+      inviteCodeExpiresAt: null,
       driver,
     };
   }
 
   static isInviteExpired(driver) {
-    if (!driver?.inviteCodeExpiresAt) return true;
-    return new Date(driver.inviteCodeExpiresAt).getTime() < Date.now();
+    return false;
   }
 
   static async verifyInvite(driver, inviteCode) {

@@ -102,27 +102,32 @@ async function closeRouteIfFinished(routeId, storeId, transaction) {
 class DriverAppController {
   static async activate(req, res) {
     try {
-      const driverId = Number(req.body.driverId);
       const inviteCode = String(req.body.inviteCode || req.body.pin || '').trim();
 
-      if (!Number.isInteger(driverId) || driverId <= 0) {
-        return res.status(400).json({ error: 'driverId inválido' });
-      }
       if (!inviteCode) return res.status(400).json({ error: 'inviteCode es requerido' });
 
-      const driver = await DeliveryDriver.findOne({ where: { id: driverId } });
-      if (!driver || driver.status === 'inactive') {
-        return res.status(404).json({ error: 'Repartidor no encontrado' });
+      const drivers = await DeliveryDriver.findAll({
+        where: {
+          status: { [Op.ne]: 'inactive' },
+          inviteCodeHash: { [Op.ne]: null },
+        },
+        order: [['updatedAt', 'DESC']],
+      });
+
+      let driver = null;
+      for (const candidate of drivers) {
+        const isValidInvite = await DriverInviteService.verifyInvite(candidate, inviteCode);
+        if (isValidInvite) {
+          driver = candidate;
+          break;
+        }
       }
 
-      const isValidInvite = await DriverInviteService.verifyInvite(driver, inviteCode);
-      if (!isValidInvite) {
-        return res.status(401).json({ error: 'PIN inválido o expirado' });
+      if (!driver) {
+        return res.status(401).json({ error: 'PIN inválido' });
       }
 
       await driver.update({
-        inviteCodeHash: null,
-        inviteCodeExpiresAt: null,
         lastLoginAt: new Date(),
         mobileSessionVersion: Number(driver.mobileSessionVersion ?? 0) + 1,
       });
@@ -268,6 +273,64 @@ class DriverAppController {
         lastLongitude: location.longitude,
         lastLocationAccuracy: location.accuracy,
         lastLocationAt: new Date(),
+      });
+
+      const loadedRoute = await loadDriverRoute(route.id, driver);
+      await OrderTrackingService.notifyRoute(route.id, driver.storeId);
+      res.status(200).json(loadedRoute);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+
+  static async reorderRouteOrders(req, res) {
+    try {
+      const driver = req.driver;
+      const route = await DeliveryRoute.findOne({
+        where: {
+          id: req.params.id,
+          storeId: driver.storeId,
+          driverId: driver.id,
+          status: { [Op.in]: ACTIVE_ROUTE_STATUSES },
+        },
+      });
+      if (!route) return res.status(404).json({ error: 'Recorrido activo no encontrado' });
+
+      const routeOrderIds = Array.isArray(req.body.routeOrderIds)
+        ? req.body.routeOrderIds.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+        : [];
+      const uniqueRouteOrderIds = [...new Set(routeOrderIds)];
+      if (uniqueRouteOrderIds.length !== routeOrderIds.length || routeOrderIds.length === 0) {
+        return res.status(400).json({ error: 'routeOrderIds inválidos' });
+      }
+
+      const routeOrders = await DeliveryRouteOrder.findAll({
+        where: {
+          routeId: route.id,
+          storeId: driver.storeId,
+        },
+      });
+      const existingIds = new Set(routeOrders.map((routeOrder) => Number(routeOrder.id)));
+      const includesAllStops = routeOrders.length === routeOrderIds.length
+        && routeOrderIds.every((id) => existingIds.has(id));
+      if (!includesAllStops) {
+        return res.status(400).json({ error: 'El orden debe incluir todos los pedidos del recorrido' });
+      }
+
+      await sequelize.transaction(async (transaction) => {
+        await Promise.all(routeOrderIds.map((routeOrderId, index) => (
+          DeliveryRouteOrder.update(
+            { sequence: index + 1 },
+            {
+              where: {
+                id: routeOrderId,
+                routeId: route.id,
+                storeId: driver.storeId,
+              },
+              transaction,
+            },
+          )
+        )));
       });
 
       const loadedRoute = await loadDriverRoute(route.id, driver);
