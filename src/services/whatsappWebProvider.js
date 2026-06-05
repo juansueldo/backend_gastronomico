@@ -62,10 +62,10 @@ class WhatsappWebProvider {
     return requestGateway(`/internal/sessions/${account.id}/status`);
   }
 
-  static sendMessage(account, { to, body, media }) {
+  static sendMessage(account, { to, body, media, quotedMessageId }) {
     return requestGateway(`/internal/sessions/${account.id}/send`, {
       method: 'POST',
-      body: JSON.stringify({ storeId: account.storeId, to, body, media }),
+      body: JSON.stringify({ storeId: account.storeId, to, body, media, quotedMessageId }),
     });
   }
 

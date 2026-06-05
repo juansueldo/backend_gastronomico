@@ -185,6 +185,42 @@ function getGatewayAliasIds(payload = {}) {
   ]);
 }
 
+function buildQuotedMessagePayload(payload = {}) {
+  const quotedMessageId = payload.replyToMessageId
+    ?? payload.reply_to_message_id
+    ?? payload.quotedMessageId
+    ?? payload.quoted_msg_id
+    ?? null;
+  const quotedMessageContent = payload.replyToContent
+    ?? payload.reply_to_content
+    ?? payload.quotedMessageContent
+    ?? payload.quoted_content
+    ?? null;
+
+  if (!quotedMessageId && !quotedMessageContent) return null;
+
+  return {
+    ...(quotedMessageId ? {
+      quotedMessageId: String(quotedMessageId),
+      quoted_msg_id: String(quotedMessageId),
+      replyToMessageId: String(quotedMessageId),
+    } : {}),
+    ...(quotedMessageContent ? {
+      quotedMessageContent: String(quotedMessageContent),
+      quoted_content: String(quotedMessageContent),
+      replyToContent: String(quotedMessageContent),
+    } : {}),
+  };
+}
+
+function buildClientMessagePayload(payload = {}) {
+  const clientMessageId = payload.clientMessageId ?? payload.client_message_id ?? null;
+  return clientMessageId ? {
+    clientMessageId: String(clientMessageId),
+    client_message_id: String(clientMessageId),
+  } : null;
+}
+
 function buildProviderMessageId(account, payload, phone, body) {
   if (payload.id) return String(payload.id);
 
@@ -549,6 +585,17 @@ async function findExistingConversationForAlias({ storeId, account, externalChat
     .filter((alias) => !isAccountAlias(account, alias));
   if (aliases.length === 0) return null;
 
+  const existingConversation = await Conversation.findOne({
+    where: {
+      storeId,
+      messagingAccountId: account.id,
+      externalChatId: { [Op.in]: aliases },
+    },
+    order: [['lastMessageAt', 'DESC'], ['updatedAt', 'DESC']],
+  });
+
+  if (existingConversation) return { conversation: existingConversation, contact: null };
+
   const existingContact = await Contact.findOne({
     where: {
       storeId,
@@ -649,7 +696,7 @@ async function findOrCreateConversation({ storeId, account, phone, externalChatI
     return exactConversation;
   }
 
-  const existingAlias = trustedPhone
+  const existingAlias = expandedAliasIds.length > 0
     ? await findExistingConversationForAlias({
       storeId,
       account,
@@ -968,6 +1015,8 @@ class MessagingController {
       if (!storeId) return res.status(401).json({ error: 'storeId requerido en token' });
 
       const { body, media } = req.body;
+      const quotedMessage = buildQuotedMessagePayload(req.body);
+      const clientMessage = buildClientMessagePayload(req.body);
       if (!body && !media) return res.status(400).json({ error: 'body o media es requerido' });
 
       const conversation = await loadConversation(req.params.id, storeId);
@@ -990,7 +1039,9 @@ class MessagingController {
         body: finalBody,
         mediaUrl: outgoingMedia?.mediaUrl || null,
         status: 'pending',
-        rawPayload: outgoingMedia ? { ...outgoingMedia, mediaData: undefined } : null,
+        rawPayload: outgoingMedia || quotedMessage || clientMessage
+          ? { ...(outgoingMedia ? { ...outgoingMedia, mediaData: undefined } : {}), ...(quotedMessage || {}), ...(clientMessage || {}) }
+          : null,
       });
 
       try {
@@ -1004,6 +1055,7 @@ class MessagingController {
               to: recipientId,
               body: finalBody,
               media: outgoingMedia,
+              quotedMessageId: quotedMessage?.quotedMessageId,
             });
             break;
           } catch (candidateErr) {
@@ -1028,7 +1080,12 @@ class MessagingController {
           providerMessageId: sent.providerMessageId || null,
           status: 'sent',
           sentAt: new Date(),
-          rawPayload: outgoingMedia ? { ...outgoingMedia, mediaData: undefined, sent } : sent,
+          rawPayload: {
+            ...(outgoingMedia ? { ...outgoingMedia, mediaData: undefined } : {}),
+            ...(quotedMessage || {}),
+            ...(clientMessage || {}),
+            sent,
+          },
         });
       } catch (sendErr) {
         await message.update({ status: 'failed', rawPayload: { error: sendErr.message } });
