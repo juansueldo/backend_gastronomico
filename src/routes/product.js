@@ -201,6 +201,10 @@ router.post('/ingredient/create', async (req, res) => {
   await ProductController.upsertIngredientStock(req, res);
 });
 
+router.delete('/ingredient/:id', async (req, res) => {
+  await ProductController.deleteIngredient(req, res);
+});
+
 router.get('/ingredient/list', async (req, res) => {
   await ProductController.listIngredients(req, res);
 });

@@ -683,6 +683,54 @@ class ProductController {
         }
     }
 
+    static async deleteIngredient(req, res) {
+        try {
+            const storeId = req.user?.storeId;
+            if (!storeId) return res.status(401).json({ error: 'storeId no encontrado en el token' });
+
+            const ingredientId = Number(req.params.id);
+            if (!Number.isInteger(ingredientId) || ingredientId <= 0) {
+                return res.status(400).json({ error: 'Ingrediente inválido' });
+            }
+
+            const ingredient = await InventoryItem.findOne({
+                where: { id: ingredientId, storeId, statusId: 1 },
+            });
+
+            if (!ingredient) {
+                return res.status(404).json({ error: 'Ingrediente no encontrado' });
+            }
+
+            if (ingredient.productId) {
+                return res.status(409).json({
+                    error: 'No se puede eliminar este inventario porque está asociado a un producto con stock directo',
+                });
+            }
+
+            const [recipeUsageCount, modifierUsageCount] = await Promise.all([
+                RecipeItem.count({
+                    where: { inventoryItemId: ingredient.id, storeId, statusId: 1 },
+                }),
+                ProductIngredientOption.count({
+                    where: { inventoryItemId: ingredient.id, storeId, statusId: 1 },
+                }),
+            ]);
+
+            const associatedProductsCount = recipeUsageCount + modifierUsageCount;
+            if (associatedProductsCount > 0) {
+                return res.status(409).json({
+                    error: 'No se puede eliminar este ingrediente porque está asociado a uno o más productos',
+                    associatedProductsCount,
+                });
+            }
+
+            await ingredient.update({ statusId: INACTIVE_STATUS_ID });
+            return res.json({ message: 'Ingrediente eliminado correctamente' });
+        } catch (err) {
+            return res.status(400).json({ error: err.message });
+        }
+    }
+
     static async listIngredients(req, res) {
         try {
             const storeId = req.user?.storeId;
